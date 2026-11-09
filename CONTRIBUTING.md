@@ -46,13 +46,13 @@ source build does not establish production or release acceptance.
 
 ### Commit changes
 
-After verification, commit your changes. Repository maintenance commits use
-the identity required by [AGENTS.md](AGENTS.md), set per process:
+After verification, human contributors commit using their own existing Git
+identity. For repository automation and agent-generated commits, follow the
+maintainer identity instruction in [AGENTS.md](AGENTS.md) using per-process
+environment variables.
 
 ```
-GIT_AUTHOR_NAME=Lei-k GIT_AUTHOR_EMAIL=qwe17235@gmail.com \
-GIT_COMMITTER_NAME=Lei-k GIT_COMMITTER_EMAIL=qwe17235@gmail.com \
-  git commit -m 'docs: clarify fork guidance (issue #4)'
+git commit -m 'docs: clarify fork guidance (issue #4)'
 ```
 
 ### Push to the branch

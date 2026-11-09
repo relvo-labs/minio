@@ -1,10 +1,9 @@
 name: VulnCheck
 on:
+  workflow_dispatch:
   pull_request:
-    branches:
-      - master
-
-  push:
+    types:
+      - ready_for_review
     branches:
       - master
 

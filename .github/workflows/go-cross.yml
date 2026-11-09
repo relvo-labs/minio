@@ -1,7 +1,10 @@
 name: Crosscompile
 
 on:
+  workflow_dispatch:
   pull_request:
+    types:
+      - ready_for_review
     branches:
       - master
 

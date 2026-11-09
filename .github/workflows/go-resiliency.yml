@@ -1,14 +1,11 @@
 name: Resiliency Functional Tests
 
 on:
-  pull_request:
-    branches:
-      - master
+  workflow_dispatch:
 
-# This ensures that previous jobs for the PR are canceled when the PR is
-# updated.
+# Manual runs are keyed by run id, so they never share a group.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 permissions:
@@ -16,20 +13,18 @@ permissions:
 
 jobs:
   build:
-    name: Go ${{ matrix.go-version }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        go-version: [1.24.x]
-        os: [ubuntu-latest]
+    name: Go (go.mod toolchain) on ubuntu-latest
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          go-version: ${{ matrix.go-version }}
-          check-latest: true
-      - name: Build on ${{ matrix.os }}
-        if: matrix.os == 'ubuntu-latest'
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Go toolchain matches go.mod
+        run: make ci-go-version
+      - name: Build on ubuntu-latest
         env:
           CGO_ENABLED: 0
           GO111MODULE: on

@@ -1,22 +1,36 @@
 name: Shell formatting checks
 
 on:
+  workflow_dispatch:
   pull_request:
+    types:
+      - ready_for_review
     branches:
       - master
 
+# A newer Ready transition cancels an older run for the same PR. Manual runs
+# are keyed by run id, so they never share a group or cancel each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
-    
+
 jobs:
   build:
     name: runner / shfmt
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: luizm/action-sh-checker@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SHFMT_OPTS: "-s"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          sh_checker_shellcheck_disable: true # disable for now
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      # Same file set and options as the former sh-checker action
+      # (shfmt -f . ; shfmt -s -d), shellcheck stays disabled.
+      - name: shfmt
+        run: |
+          make ci-go-version
+          make ci-shfmt

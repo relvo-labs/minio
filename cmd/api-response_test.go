@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/klauspost/compress/gzhttp"
 )
@@ -130,7 +131,7 @@ func TestGetURLScheme(t *testing.T) {
 func TestTrackingResponseWriter(t *testing.T) {
 	rw := httptest.NewRecorder()
 	trw := &trackingResponseWriter{ResponseWriter: rw}
-	trw.WriteHeader(123)
+	trw.WriteHeader(http.StatusOK)
 	if !trw.headerWritten {
 		t.Fatal("headerWritten was not set by WriteHeader call")
 	}
@@ -142,7 +143,7 @@ func TestTrackingResponseWriter(t *testing.T) {
 
 	// Check that WriteHeader and Write were called on the underlying response writer
 	resp := rw.Result()
-	if resp.StatusCode != 123 {
+	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("unexpected status: %v", resp.StatusCode)
 	}
 	body, err := io.ReadAll(resp.Body)
@@ -156,6 +157,56 @@ func TestTrackingResponseWriter(t *testing.T) {
 	// Check that Unwrap works
 	if trw.Unwrap() != rw {
 		t.Fatalf("Unwrap returned wrong result: %v", trw.Unwrap())
+	}
+}
+
+func TestTrackingResponseWriterBodyNotAllowed(t *testing.T) {
+	// ResponseRecorder records attempted writes even when it returns an error.
+	// Use a server to check that forbidden bodies are not sent. Informational
+	// 1xx responses can be followed by a final response, so use final statuses.
+	for _, statusCode := range []int{http.StatusNoContent, http.StatusNotModified} {
+		t.Run(http.StatusText(statusCode), func(t *testing.T) {
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				trw := &trackingResponseWriter{ResponseWriter: w}
+				if trw.headerWritten || headersAlreadyWritten(trw) {
+					t.Error("headers have not been written yet")
+				}
+				trw.WriteHeader(statusCode)
+				if !trw.headerWritten || !headersAlreadyWritten(trw) {
+					t.Error("headerWritten was not set by WriteHeader call")
+				}
+
+				n, err := trw.Write([]byte("hello"))
+				if n != 0 || err != http.ErrBodyNotAllowed {
+					t.Errorf("Write = (%d, %v), want (0, %v)", n, err, http.ErrBodyNotAllowed)
+				}
+				if !trw.headerWritten || !headersAlreadyWritten(trw) {
+					t.Error("failed Write cleared headerWritten")
+				}
+				if trw.Unwrap() != w {
+					t.Errorf("Unwrap returned wrong result: %v", trw.Unwrap())
+				}
+			}))
+			defer srv.Close()
+
+			client := srv.Client()
+			client.Timeout = 5 * time.Second
+			resp, err := client.Get(srv.URL)
+			if err != nil {
+				t.Fatalf("request failed: %v", err)
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode != statusCode {
+				t.Fatalf("unexpected status: %v", resp.StatusCode)
+			}
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				t.Fatalf("reading response body failed: %v", err)
+			}
+			if len(body) != 0 {
+				t.Fatalf("response body should be empty: %q", body)
+			}
+		})
 	}
 }
 

@@ -6,14 +6,30 @@ on:
     types:
       - ready_for_review
 
+# A newer Ready transition cancels an older run for the same PR. Manual runs
+# are keyed by run id, so they never share a group or cancel each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
   run:
     name: Spell Check with Typos
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Actions Repository
-      uses: actions/checkout@v4
-
-    - name: Check spelling of repo
-      uses: crate-ci/typos@master
-
+      - name: Checkout Actions Repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Go is needed only to evaluate the Makefile; typos is a pinned,
+      # checksum-verified release binary (buildscripts/ci/install-tools.sh).
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Check spelling of repo
+        run: |
+          make ci-go-version
+          make ci-typos

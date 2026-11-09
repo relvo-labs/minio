@@ -7,6 +7,12 @@ on:
     branches:
       - master
 
+# A newer Ready transition cancels an older run for the same PR. Manual runs
+# are keyed by run id, so they never share a group or cancel each other.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
 permissions:
   contents: read # to fetch code (actions/checkout)
 
@@ -16,15 +22,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
-      - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          go-version: 1.24.x
-          cached: false
-      - name: Get official govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
-        shell: bash
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: false
+      # Pinned govulncheck; text mode exits nonzero on reachable findings.
       - name: Run govulncheck
-        run: govulncheck -show verbose ./...
+        run: make ci-vulncheck
         shell: bash

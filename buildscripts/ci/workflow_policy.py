@@ -30,6 +30,13 @@ Two independent layers must both accept every workflow:
 
 Run/no-run decisions are simulated from the parsed event mapping using
 GitHub's documented filter semantics and compared with the per-class policy.
+
+Job-level invariants are errors, not warnings: exact read-only top-level
+permissions, per-PR/per-run concurrency, GitHub-hosted runners, third-party
+actions pinned to the verified release commit with a matching tag comment,
+non-persisted checkout credentials, setup-go reading the go.mod toolchain,
+no secrets and no floating installs in run steps.  Repository checks bind the
+go.mod toolchain, the tool pins and the Make targets the workflows call.
 """
 
 import argparse
@@ -40,8 +47,10 @@ import re
 import stat
 import sys
 
-POLICY_VERSION = "1"
+POLICY_VERSION = "2"
 PYYAML_REQUIRED_VERSION = "6.0.3"
+# Selected tested Go toolchain; go.mod's `toolchain` directive must equal it.
+EXPECTED_GO_TOOLCHAIN = "go1.27.3"
 
 PORTABLE = "portable"
 PR_METADATA = "pr-metadata"
@@ -59,6 +68,7 @@ INVENTORY = {
     "vulncheck.yml": PORTABLE,
     "go.yml": HEAVY,
     "go-healing.yml": HEAVY,
+    "go-race.yml": HEAVY,
     "go-resiliency.yml": HEAVY,
     "iam-integrations.yaml": HEAVY,
     "mint.yml": HEAVY,
@@ -177,6 +187,66 @@ FILTER_RE = re.compile(r"    ([a-z][a-z_-]*):\Z")
 ITEM_RE = re.compile(r"      - ([A-Za-z0-9_./-]+)\Z")
 BLOCK_SCALAR_RE = re.compile(r"[|>][-+]?\Z")
 GLOB_CHARS = set("*?[]!+")
+
+# --- job-level invariants ---------------------------------------------------
+TOP_PERMISSIONS = {"contents": "read"}
+CONCURRENCY = {
+    "group": "${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}",
+    "cancel-in-progress": True,
+}
+GITHUB_HOSTED_RUNNERS = ("ubuntu-latest", "ubuntu-24.04")
+# Third-party actions: repository -> (commit of the release tag, tag).  Commits
+# come from `git ls-remote --tags` of the canonical repository and the GitHub
+# "latest release" metadata (see docs/maintenance/ci.md).
+PINNED_ACTIONS = {
+    "actions/checkout": ("3d3c42e5aac5ba805825da76410c181273ba90b1", "v7.0.1"),
+    "actions/setup-go": ("b7ad1dad31e06c5925ef5d2fc7ad053ef454303e", "v7.0.0"),
+    "actions/dependency-review-action": ("a1d282b36b6f3519aa1f3fc636f609c47dddb294", "v5.0.0"),
+}
+CHECKOUT = "actions/checkout"
+SETUP_GO = "actions/setup-go"
+# Documented actions/setup-go v7.0.0 inputs this repository may set.
+SETUP_GO_INPUTS = ("go-version-file", "cache", "cache-dependency-path")
+CHECKOUT_INPUTS = ("persist-credentials", "repository", "path")
+USES_KEY_RE = re.compile(r"^[ ]*(?:- )?uses[ ]*:")
+USES_LINE_RE = re.compile(
+    r"^[ ]*(?:- )?uses: ([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)@([0-9a-f]{40}) # (v[0-9]+\.[0-9]+\.[0-9]+)\Z"
+)
+# Floating installs/refs and pipe-to-shell are not allowed in run steps.
+FLOATING_RUN_RE = re.compile(r"@(?:latest|master|main)\b|\|[ \t]*(?:sudo[ \t]+)?(?:bash|sh)\b")
+MAKE_TARGET_RE = re.compile(r"(?<![\w./-])make[ \t]+([a-z][a-z0-9-]*)")
+# Targets that verify the active Go equals the go.mod toolchain.
+GO_CHECKED_TARGETS = (
+    "ci-go-version",
+    "ci-build",
+    "ci-check-gen",
+    "ci-lint",
+    "ci-test",
+    "ci-test-race",
+    "ci-vulncheck",
+    "ci-crosscompile",
+)
+# Exact Make targets of the restored portable workflows and the manual race
+# workflow.  The canonical race suite must not run automatically.
+EXPECTED_MAKE_TARGETS = {
+    "go-lint.yml": {"ci-go-version", "ci-policy", "ci-build", "ci-check-gen", "ci-lint", "ci-test"},
+    "go-cross.yml": {"ci-crosscompile"},
+    "vulncheck.yml": {"ci-vulncheck"},
+    "typos.yml": {"ci-go-version", "ci-typos"},
+    "shfmt.yml": {"ci-go-version", "ci-shfmt"},
+    "helm-lint.yml": {"ci-go-version", "ci-helm-lint"},
+    "depsreview.yaml": set(),
+    "go-race.yml": {"ci-test-race"},
+}
+MANUAL_ONLY_TARGETS = ("ci-test-race", "test-race")
+# buildscripts/ci/tools.env keys that need a checksum per architecture in
+# install-tools.sh (Go tools are verified through sum.golang.org instead).
+CHECKSUMMED_TOOLS = {
+    "GOLANGCI_LINT_VERSION": "golangci-lint",
+    "TYPOS_VERSION": "typos",
+    "HELM_VERSION": "helm",
+}
+TOOL_ARCHES = ("amd64", "arm64")
 
 
 class Result(object):
@@ -456,6 +526,12 @@ def yaml_load_strict(text, res):
     if yaml.__version__ != PYYAML_REQUIRED_VERSION:
         res.err("PyYAML version %s != required %s" % (yaml.__version__, PYYAML_REQUIRED_VERSION))
         return None
+    expect = os.environ.get("CI_EXPECT_PYYAML_DIR")
+    if expect:
+        got = os.path.dirname(os.path.dirname(os.path.realpath(yaml.__file__)))
+        if got != os.path.realpath(expect):
+            res.err("PyYAML loaded from %s, expected the pinned install in %s" % (got, expect))
+            return None
     try:
         docs = 0
         for ev in yaml.parse(text, Loader=loader):
@@ -484,7 +560,78 @@ def _is_write_permission(value):
     return False
 
 
-def crosscheck(data, top_keys, events, res):
+def raw_uses_lines(text, res):
+    """Return [(action, sha, tag)] for every ``uses:`` line of the raw text.
+
+    Every line whose key is ``uses`` must be the plain pinned form
+    ``uses: owner/repo@<40-hex> # vX.Y.Z``; anything else is an error.
+    """
+    found = []
+    for lineno, line in enumerate(text.split("\n"), 1):
+        if not USES_KEY_RE.match(line):
+            continue
+        m = USES_LINE_RE.match(line.rstrip(" "))
+        if not m:
+            res.err("line %d: action reference must be 'owner/repo@<full sha> # vX.Y.Z': %r" % (lineno, line.strip()))
+            continue
+        found.append(m.groups())
+    return found
+
+
+def _check_permissions_value(where, value, res):
+    if not isinstance(value, dict) or not value:
+        res.err("%s permissions must be a non-empty mapping of read/none scopes, got %r" % (where, value))
+        return
+    for scope, level in value.items():
+        if level not in ("read", "none"):
+            res.err("%s permission %s: %r is not read-only" % (where, scope, level))
+
+
+def _check_step(job_id, idx, step, res):
+    """Validate one step; return the action repository it uses, if any."""
+    if not isinstance(step, dict):
+        res.err("job %r step %d is not a mapping" % (job_id, idx))
+        return None
+    run = step.get("run")
+    if isinstance(run, str) and FLOATING_RUN_RE.search(run):
+        res.err("job %r step %d installs or fetches a floating/unpinned reference: %r" % (job_id, idx, run.strip()))
+    uses = step.get("uses")
+    if uses is None:
+        return None
+    if not isinstance(uses, str) or "@" not in uses or uses.startswith("./") or uses.startswith("docker://"):
+        res.err("job %r step %d uses %r: only pinned third-party actions are allowed" % (job_id, idx, uses))
+        return None
+    repo, ref = uses.rsplit("@", 1)
+    pin = PINNED_ACTIONS.get(repo)
+    if pin is None:
+        res.err("job %r step %d action %r is not in the verified pin list" % (job_id, idx, repo))
+        return repo
+    if ref != pin[0]:
+        res.err("job %r step %d action %s@%s is not the verified %s commit %s" % (job_id, idx, repo, ref, pin[1], pin[0]))
+    with_ = step.get("with") or {}
+    if not isinstance(with_, dict):
+        res.err("job %r step %d 'with' is not a mapping" % (job_id, idx))
+        with_ = {}
+    if repo == CHECKOUT:
+        for key in with_:
+            if key not in CHECKOUT_INPUTS:
+                res.err("job %r step %d checkout input %r is not allowed" % (job_id, idx, key))
+        if with_.get("persist-credentials") is not False:
+            res.err("job %r step %d checkout must set persist-credentials: false" % (job_id, idx))
+    elif repo == SETUP_GO:
+        for key in with_:
+            if key not in SETUP_GO_INPUTS:
+                res.err("job %r step %d setup-go input %r is not allowed (use go-version-file: go.mod)" % (job_id, idx, key))
+        if with_.get("go-version-file") != "go.mod":
+            res.err("job %r step %d setup-go must read go-version-file: go.mod" % (job_id, idx))
+        if "cache" in with_ and not isinstance(with_["cache"], bool):
+            res.err("job %r step %d setup-go cache must be a boolean" % (job_id, idx))
+    elif with_:
+        res.err("job %r step %d action %s takes no inputs here" % (job_id, idx, repo))
+    return repo
+
+
+def crosscheck(data, top_keys, events, res, text=None):
     if not isinstance(data, dict):
         res.err("workflow document is not a mapping")
         return
@@ -497,12 +644,17 @@ def crosscheck(data, top_keys, events, res):
         res.err("strict parse 'on' %r differs from canonical %r" % (data.get("on"), events))
     if _is_write_permission(data.get("permissions")):
         res.err("top-level write permissions are not allowed")
-    if "permissions" not in data:
-        res.warn("pending stage2: no top-level read-only permissions block")
+    if data.get("permissions") != TOP_PERMISSIONS:
+        res.err("top-level permissions must be exactly %r, got %r" % (TOP_PERMISSIONS, data.get("permissions")))
+    if data.get("concurrency") != CONCURRENCY:
+        res.err("concurrency must be exactly %r, got %r" % (CONCURRENCY, data.get("concurrency")))
+    if text is not None and "secrets." in text.replace(" ", ""):
+        res.err("workflows must not reference secrets")
     jobs = data.get("jobs")
     if not isinstance(jobs, dict) or not jobs:
         res.err("jobs must be a non-empty mapping")
         return
+    step_uses = []
     for job_id, job in jobs.items():
         if not isinstance(job, dict):
             res.err("job %r is not a mapping" % (job_id,))
@@ -511,17 +663,49 @@ def crosscheck(data, top_keys, events, res):
             res.err("job %r calls a reusable workflow (%r)" % (job_id, job["uses"]))
         if _is_write_permission(job.get("permissions")):
             res.err("job %r requests write permissions" % (job_id,))
+        if "permissions" in job:
+            _check_permissions_value("job %r" % (job_id,), job["permissions"], res)
+        if "container" in job:
+            res.err("job %r container jobs are not allowed" % (job_id,))
         runs_on = job.get("runs-on")
-        if isinstance(runs_on, str) and not (
-            runs_on.startswith("ubuntu-") or runs_on.startswith("${{")
-        ):
-            res.warn("pending stage2: job %r runs-on %r is not a GitHub-hosted label" % (job_id, runs_on))
-        for step in job.get("steps") or []:
-            uses = step.get("uses") if isinstance(step, dict) else None
-            if isinstance(uses, str) and not uses.startswith("./"):
-                ref = uses.rsplit("@", 1)[-1] if "@" in uses else ""
-                if not re.match(r"[0-9a-f]{40}\Z", ref):
-                    res.warn("pending stage2: job %r action %r is not pinned to a full SHA" % (job_id, uses))
+        if runs_on not in GITHUB_HOSTED_RUNNERS:
+            res.err("job %r runs-on %r is not one of the GitHub-hosted labels %r" % (job_id, runs_on, GITHUB_HOSTED_RUNNERS))
+        steps = job.get("steps")
+        if not isinstance(steps, list) or not steps:
+            res.err("job %r must have a non-empty steps list" % (job_id,))
+            continue
+        repos = []
+        targets = []
+        for idx, step in enumerate(steps):
+            repo = _check_step(job_id, idx, step, res)
+            if repo is not None:
+                repos.append(repo)
+                step_uses.append(step.get("uses"))
+            if isinstance(step, dict) and isinstance(step.get("run"), str):
+                targets.extend(MAKE_TARGET_RE.findall(step["run"]))
+        if SETUP_GO in repos and not set(targets) & set(GO_CHECKED_TARGETS):
+            res.err("job %r sets up Go but runs no target that verifies the go.mod toolchain" % (job_id,))
+        if (SETUP_GO in repos or targets) and (not repos or repos[0] != CHECKOUT):
+            res.err("job %r must check out the repository (pinned checkout) first" % (job_id,))
+    if text is not None:
+        raw = raw_uses_lines(text, res)
+        if [("%s@%s" % (a, s)) for a, s, _ in raw] != step_uses:
+            res.err("raw 'uses:' lines %r differ from parsed steps %r" % (raw, step_uses))
+        for action, sha, tag in raw:
+            pin = PINNED_ACTIONS.get(action)
+            if pin is not None and (sha, tag) != pin:
+                res.err("action %s@%s comment %r does not match verified pin %s %s" % (action, sha, tag, pin[1], pin[0]))
+
+
+def make_targets(data):
+    """All ``make <target>`` invocations in run steps, in order."""
+    out = []
+    jobs = data.get("jobs") if isinstance(data, dict) else None
+    for job in (jobs or {}).values():
+        for step in (job.get("steps") or []) if isinstance(job, dict) else []:
+            if isinstance(step, dict) and isinstance(step.get("run"), str):
+                out.extend(MAKE_TARGET_RE.findall(step["run"]))
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -536,20 +720,80 @@ def validate_text(cls, text):
     matrix = run_matrix(events)
     check_matrix(cls, matrix, res)
     data = yaml_load_strict(text, res)
+    targets = []
     if data is not None:
-        crosscheck(data, top_keys, events, res)
+        crosscheck(data, top_keys, events, res, text=text)
+        targets = make_targets(data)
+    if cls != HEAVY:
+        for t in targets:
+            if t in MANUAL_ONLY_TARGETS:
+                res.err("target %r is manual-only and must not run in a %s workflow" % (t, cls))
     return {
         "class": cls,
         "events": events,
         "runs": sorted(k for k, v in matrix.items() if v),
+        "make_targets": targets,
         "errors": res.errors,
         "warnings": res.warnings,
     }
 
 
-def validate_dir(wf_dir, inventory=None, removed=None):
+def makefile_targets(path):
+    with open(path) as fh:
+        return set(re.findall(r"^([A-Za-z0-9_.-]+)[ \t]*:(?!=)", fh.read(), re.M))
+
+
+def check_repo(root):
+    """Repository-level pins that the workflows rely on; returns errors."""
+    errors = []
+
+    def read(rel):
+        try:
+            with open(os.path.join(root, rel)) as fh:
+                return fh.read()
+        except OSError as exc:
+            errors.append("%s: cannot read: %s" % (rel, exc))
+            return ""
+
+    gomod = read("go.mod")
+    toolchains = re.findall(r"^toolchain[ \t]+(\S+)[ \t]*$", gomod, re.M)
+    if toolchains != [EXPECTED_GO_TOOLCHAIN]:
+        errors.append("go.mod: toolchain directive %r != selected %s" % (toolchains, EXPECTED_GO_TOOLCHAIN))
+    env = {}
+    for line in read("buildscripts/ci/tools.env").split("\n"):
+        if line.strip() and not line.startswith("#"):
+            m = re.match(r"([A-Z][A-Z0-9_]*)=([A-Za-z0-9.]+)\Z", line)
+            if not m:
+                errors.append("buildscripts/ci/tools.env: not a plain NAME=value line: %r" % line)
+                continue
+            env[m.group(1)] = m.group(2)
+    if env.get("PYYAML_VERSION") != PYYAML_REQUIRED_VERSION:
+        errors.append("tools.env PYYAML_VERSION %r != %s" % (env.get("PYYAML_VERSION"), PYYAML_REQUIRED_VERSION))
+    req = read("buildscripts/ci/requirements-ci.txt")
+    pins = re.findall(r"^PyYAML==(\S+)", req, re.M)
+    if pins != [PYYAML_REQUIRED_VERSION]:
+        errors.append("requirements-ci.txt PyYAML pins %r != [%s]" % (pins, PYYAML_REQUIRED_VERSION))
+    if not re.search(r"--hash=sha256:[0-9a-f]{64}", req):
+        errors.append("requirements-ci.txt has no sha256 hashes")
+    installer = read("buildscripts/ci/install-tools.sh")
+    for key, name in sorted(CHECKSUMMED_TOOLS.items()):
+        version = env.get(key)
+        if not version:
+            errors.append("tools.env: %s is missing" % key)
+            continue
+        for arch in TOOL_ARCHES:
+            if not re.search(r"^\t%s-%s-%s\) echo [0-9a-f]{64} ;;$" % (re.escape(name), re.escape(version), arch), installer, re.M):
+                errors.append("install-tools.sh: no pinned sha256 for %s %s %s" % (name, version, arch))
+    for key in ("GOVULNCHECK_VERSION", "SHFMT_VERSION"):
+        if not re.match(r"v[0-9]+\.[0-9]+\.[0-9]+\Z", env.get(key, "")):
+            errors.append("tools.env: %s must be an exact vX.Y.Z module version" % key)
+    return errors
+
+
+def validate_dir(wf_dir, inventory=None, removed=None, makefile=None, expected_targets=None):
     inventory = INVENTORY if inventory is None else inventory
     removed = REMOVED if removed is None else removed
+    expected_targets = EXPECTED_MAKE_TARGETS if expected_targets is None else expected_targets
     report = {"policy_version": POLICY_VERSION, "workflows": {}, "errors": []}
     try:
         entries = sorted(os.listdir(wf_dir))
@@ -592,6 +836,20 @@ def validate_dir(wf_dir, inventory=None, removed=None):
     for name in sorted(set(inventory) - seen):
         if name not in report["workflows"]:
             report["errors"].append("%s: classified workflow is missing" % name)
+    for name, want in sorted(expected_targets.items()):
+        entry = report["workflows"].get(name)
+        if entry is not None and set(entry["make_targets"]) != want:
+            report["errors"].append("%s: make targets %r != expected %r" % (name, sorted(set(entry["make_targets"])), sorted(want)))
+    if makefile is not None:
+        try:
+            defined = makefile_targets(makefile)
+        except OSError as exc:
+            report["errors"].append("cannot read Makefile: %s" % exc)
+            defined = None
+        if defined is not None:
+            for name, entry in sorted(report["workflows"].items()):
+                for t in sorted(set(entry["make_targets"]) - defined):
+                    report["errors"].append("%s: make target %r is not defined in the Makefile" % (name, t))
     return report
 
 
@@ -599,9 +857,11 @@ def main(argv=None):
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--workflows-dir", default=os.path.join(root, ".github", "workflows"))
+    ap.add_argument("--repo-root", default=root, help="checkout whose go.mod/Makefile/tool pins are checked")
     ap.add_argument("--json", help="write the full report to this path")
     args = ap.parse_args(argv)
-    report = validate_dir(args.workflows_dir)
+    report = validate_dir(args.workflows_dir, makefile=os.path.join(args.repo_root, "Makefile"))
+    report["errors"].extend(check_repo(args.repo_root))
     if args.json:
         with open(args.json, "w") as fh:
             json.dump(report, fh, indent=2, sort_keys=True)

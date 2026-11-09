@@ -3,10 +3,9 @@ name: IAM integration
 on:
   workflow_dispatch:
 
-# This ensures that previous jobs for the PR are canceled when the PR is
-# updated.
+# Manual runs are keyed by run id, so they never share a group.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 permissions:
@@ -14,7 +13,7 @@ permissions:
 
 jobs:
   iam-matrix-test:
-    name: "[Go=${{ matrix.go-version }}|ldap=${{ matrix.ldap }}|etcd=${{ matrix.etcd }}|openid=${{ matrix.openid }}]"
+    name: "[ldap=${{ matrix.ldap }}|etcd=${{ matrix.etcd }}|openid=${{ matrix.openid }}]"
     runs-on: ubuntu-latest
 
     services:
@@ -59,7 +58,6 @@ jobs:
       # are turned off - i.e. if ldap="", then ldap server is not enabled for
       # the tests.
       matrix:
-        go-version: [1.24.x]
         ldap: ["", "localhost:389"]
         etcd: ["", "http://localhost:2379"]
         openid: ["", "http://127.0.0.1:5556/dex"]
@@ -73,11 +71,14 @@ jobs:
             openid: "http://127.0.0.1:5556/dex"
 
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          go-version: ${{ matrix.go-version }}
-          check-latest: true
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Go toolchain matches go.mod
+        run: make ci-go-version
       - name: Test LDAP/OpenID/Etcd combo
         env:
           _MINIO_LDAP_TEST_SERVER: ${{ matrix.ldap }}
@@ -127,16 +128,21 @@ jobs:
     name: Test IAM import in new cluster with missing entities
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          go-version: ${{ matrix.go-version }}
-          check-latest: true
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Go toolchain matches go.mod
+        run: make ci-go-version
+      # Public upstream fixture repository, read anonymously.
       - name: Checkout minio-iam-testing
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: minio/minio-iam-testing
           path: minio-iam-testing
+          persist-credentials: false
       - name: Test import of IAM artifacts when in fresh cluster there are missing groups etc
         run: |
           make test-iam-import-with-missing-entities
@@ -144,16 +150,21 @@ jobs:
     name: Test IAM import in new cluster with opendid configurations
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          go-version: ${{ matrix.go-version }}
-          check-latest: true
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Go toolchain matches go.mod
+        run: make ci-go-version
+      # Public upstream fixture repository, read anonymously.
       - name: Checkout minio-iam-testing
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: minio/minio-iam-testing
           path: minio-iam-testing
+          persist-credentials: false
       - name: Test import of IAM artifacts when in fresh cluster with openid configurations
         run: |
           make test-iam-import-with-openid

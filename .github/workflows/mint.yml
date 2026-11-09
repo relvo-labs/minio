@@ -3,65 +3,103 @@ name: Mint Tests
 on:
   workflow_dispatch:
 
-# This ensures that previous jobs for the PR are canceled when the PR is
-# updated.
+# Manual runs are keyed by run id, so they never share a group.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.head_ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
+# Runs on a GitHub-hosted runner (the upstream self-hosted "mint" runner is not
+# available to this fork). It pulls public images: docker.io/minio/mint:edge,
+# quay.io/minio/minio:RELEASE.2023-08-29T23-07-35Z and nginx, and migrate.sh
+# downloads the public mc client. No secrets are used.
 jobs:
   mint-test:
-    runs-on: mint
+    runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
-      - name: cleanup #https://github.com/actions/checkout/issues/273
-        run: |
-          sudo -S rm -rf ${GITHUB_WORKSPACE}
-          mkdir ${GITHUB_WORKSPACE}
       - name: checkout-step
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: setup-go-step
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: 1.24.x
+          go-version-file: go.mod
+
+      - name: Go toolchain matches go.mod
+        run: make ci-go-version
 
       - name: github sha short
         id: vars
         run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
-      - name: build-minio
+      - name: hosted-runner prerequisites
         run: |
-          TAG="quay.io/minio/minio:${{ steps.vars.outputs.sha_short }}" make docker
+          # The scripts call Compose v1 "docker-compose"; hosted runners ship
+          # the Compose v2 plugin. Put a job-local shim first on PATH.
+          mkdir -p "${RUNNER_TEMP}/bin"
+          printf '#!/bin/sh\nexec docker compose "$@"\n' >"${RUNNER_TEMP}/bin/docker-compose"
+          chmod +x "${RUNNER_TEMP}/bin/docker-compose"
+          echo "${RUNNER_TEMP}/bin" >>"${GITHUB_PATH}"
+          docker compose version
+          # migrate.sh reaches the published nginx ports by service host name.
+          echo "127.0.0.1 site1-nginx site2-nginx" | sudo tee -a /etc/hosts
+          # migrate.sh runs ./s3-check-md5 from its own directory.
+          CGO_ENABLED=0 go build -C docs/debugging/s3-check-md5 \
+            -o "${GITHUB_WORKSPACE}/.github/workflows/multipart/s3-check-md5"
+
+      # The repository Dockerfile packages signed release artifacts, which a
+      # source build does not have. Overlay this checkout's static binary on
+      # the same release image migrate.sh already uses (tag-pinned).
+      - name: build-minio
+        env:
+          SHA_SHORT: ${{ steps.vars.outputs.sha_short }}
+        run: |
+          make build
+          docker build -t "quay.io/minio/minio:${SHA_SHORT}" -f - . <<'EOF'
+          FROM quay.io/minio/minio:RELEASE.2023-08-29T23-07-35Z
+          COPY minio /usr/bin/minio
+          EOF
 
       - name: multipart uploads test
+        env:
+          SHA_SHORT: ${{ steps.vars.outputs.sha_short }}
         run: |
-          ${GITHUB_WORKSPACE}/.github/workflows/multipart/migrate.sh "${{ steps.vars.outputs.sha_short }}"
+          ${GITHUB_WORKSPACE}/.github/workflows/multipart/migrate.sh "${SHA_SHORT}"
 
       - name: compress and encrypt
+        env:
+          SHA_SHORT: ${{ steps.vars.outputs.sha_short }}
         run: |
-          ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "compress-encrypt" "minio" "minio123" "${{ steps.vars.outputs.sha_short }}"
+          ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "compress-encrypt" "minio" "minio123" "${SHA_SHORT}"
 
       - name: multiple pools
+        env:
+          SHA_SHORT: ${{ steps.vars.outputs.sha_short }}
         run: |
-          ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "pools" "minio" "minio123" "${{ steps.vars.outputs.sha_short }}"
+          ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "pools" "minio" "minio123" "${SHA_SHORT}"
 
       - name: standalone erasure
+        env:
+          SHA_SHORT: ${{ steps.vars.outputs.sha_short }}
         run: |
-          ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "erasure" "minio" "minio123" "${{ steps.vars.outputs.sha_short }}"
+          ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "erasure" "minio" "minio123" "${SHA_SHORT}"
 
       # FIXME: renable this back when we have a valid way to add deadlines for PUT()s (internode CreateFile)
       # - name: resiliency
       #   run: |
-      #     ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "resiliency" "minio" "minio123" "${{ steps.vars.outputs.sha_short }}"
+      #     ${GITHUB_WORKSPACE}/.github/workflows/run-mint.sh "resiliency" "minio" "minio123" "${SHA_SHORT}"
 
       - name: The job must cleanup
         if: ${{ always() }}
+        env:
+          SHA_SHORT: ${{ steps.vars.outputs.sha_short }}
         run: |
-          export JOB_NAME=${{ steps.vars.outputs.sha_short }}
+          export JOB_NAME=${SHA_SHORT}
           for mode in $(echo compress-encrypt pools erasure); do
              docker-compose -f ${GITHUB_WORKSPACE}/.github/workflows/mint/minio-${mode}.yaml down || true
              docker-compose -f ${GITHUB_WORKSPACE}/.github/workflows/mint/minio-${mode}.yaml rm || true
@@ -73,7 +111,7 @@ jobs:
             docker volume rm ${volume} || true
           done
 
-          docker rmi -f quay.io/minio/minio:${{ steps.vars.outputs.sha_short }}
+          docker rmi -f quay.io/minio/minio:${SHA_SHORT}
           docker system prune -f || true
           docker volume prune -f || true
           docker volume rm $(docker volume ls -q -f dangling=true) || true

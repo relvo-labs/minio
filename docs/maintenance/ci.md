@@ -1,8 +1,9 @@
 # CI trigger policy and restoration status (issue #3)
 
-Status: **safety checkpoint only.** The event matrix below is enforced and
-tested locally. It does not restore CI. The inherited job bodies are unchanged and
-unqualified (see "Pending stage 2").
+Status: **CI source restored; hosted and heavy qualification pending.** The
+workflows, pinned tooling and local entrypoints below are in place and the
+portable checks were run locally on the candidate source. No hosted Actions
+run, heavy integration or full `-race` run is claimed by this document.
 
 ## Event matrix
 
@@ -10,50 +11,160 @@ unqualified (see "Pending stage 2").
 | --- | --- | --- |
 | portable | `workflow_dispatch`, `pull_request` types `[ready_for_review]` | `go-lint.yml`, `go-cross.yml`, `vulncheck.yml`, `typos.yml`, `shfmt.yml`, `helm-lint.yml` |
 | pr-metadata | `pull_request` types `[ready_for_review]` only | `depsreview.yaml` (needs a PR payload) |
-| heavy | `workflow_dispatch` only | `go.yml`, `go-healing.yml`, `go-resiliency.yml`, `iam-integrations.yaml`, `mint.yml`, `replication.yaml`, `root-disable.yml`, `upgrade-ci-cd.yaml` |
+| heavy | `workflow_dispatch` only | `go-race.yml`, `go.yml`, `go-healing.yml`, `go-resiliency.yml`, `iam-integrations.yaml`, `mint.yml`, `replication.yaml`, `root-disable.yml`, `upgrade-ci-cd.yaml` |
 | removed | none | `issues.yaml`, `lock.yml` |
 
-The portable workflows build, lint, run unit tests, scan for vulnerabilities, or check
-formatting and spelling on a hosted runner with no external services. The heavy
-workflows start local multi-node clusters, Docker Compose stacks, or service containers.
-Some also download released binaries or check out `minio/minio-iam-testing`.
-`mint.yml` uses the upstream self-hosted `mint` runner. The two upstream
-administration bots were removed rather than retargeted. One added issues to
-the upstream `miniohq` project using an upstream PAT. The other locked threads
-on a daily schedule with `issues: write`.
+Push, schedule, other PR activity types, `workflow_run`, `workflow_call`,
+`pull_request_target` and every other event are rejected. Existing
+`branches: [master]` filters are kept; `typos.yml` and `depsreview.yaml` have
+none. The two upstream administration bots (an issue-project bot using an
+upstream PAT, and a scheduled thread-lock bot with `issues: write`) were
+removed. `.github/stale.yml` configures the Probot Stale app; it is not an
+Actions workflow and is outside this policy.
 
-Existing `branches: [master]` filters are kept because the integration PR targets
-`master`. `typos.yml` and `depsreview.yaml` had no branch filter, and none was added.
-Push, schedule, ordinary PR activity types, `workflow_run`, `workflow_call`,
-`pull_request_target` and every other event are rejected.
+## What the portable workflows run
 
-`.github/stale.yml` configures the Probot Stale app. It is not an Actions workflow
-and is outside this policy.
+Every workflow calls the Makefile, so a local run uses the same commands.
 
-## Local check
+| Workflow | Make targets |
+| --- | --- |
+| `go-lint.yml` | `ci-go-version`, `ci-policy`; `ci-build`, `ci-lint`, `ci-test`, then `ci-check-gen` last |
+| `go-cross.yml` | `ci-crosscompile` |
+| `vulncheck.yml` | `ci-vulncheck` |
+| `typos.yml`, `shfmt.yml`, `helm-lint.yml` | `ci-typos`, `ci-shfmt`, `ci-helm-lint` |
+| `go-race.yml` (manual) | `ci-test-race` |
+
+`ci-test` is the `make test` command (`go test -v -tags kqueue,dev ./...` with
+`CGO_ENABLED=0`, `MINIO_API_REQUESTS_MAX=10000`). `ci-test-race` runs the
+unchanged `buildscripts/race.sh` (`GORACE=history_size=7`). The full race suite
+used to run on Ready inside `go-lint.yml`; it is resource-heavy and now runs
+only by manual dispatch of `go-race.yml`. The memory-heavy targets set
+`GOMAXPROCS=4 GOGC=50 GOMEMLIMIT=14GiB`. `ci-vulncheck` uses text mode, which
+exits nonzero when a reachable symbol is affected.
+
+## Pins
+
+Go: every job uses `actions/setup-go` with `go-version-file: go.mod`, which
+selects the `toolchain go1.27.3` directive, and `make ci-go-version` fails if the
+active Go differs.
+
+Actions are pinned to the commit of a release tag. The SHAs come from
+`git ls-remote --tags` of each canonical repository; the tags are each
+repository's latest GitHub release.
+
+| Action | Commit | Tag |
+| --- | --- | --- |
+| `actions/checkout` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | v7.0.1 |
+| `actions/setup-go` | `b7ad1dad31e06c5925ef5d2fc7ad053ef454303e` | v7.0.0 |
+| `actions/dependency-review-action` | `a1d282b36b6f3519aa1f3fc636f609c47dddb294` | v5.0.0 |
+
+The floating `azure/setup-helm@v4`, `crate-ci/typos@master` and
+`luizm/action-sh-checker@master` actions are replaced by pinned tools.
+`buildscripts/ci/tools.env` holds the versions. `buildscripts/ci/install-tools.sh`
+installs them under `CI_TOOLS_DIR` (default `.bin/ci`, git-ignored). It never
+writes to `$GOPATH/bin`.
+
+| Tool | Version | Verification |
+| --- | --- | --- |
+| golangci-lint | 2.15.0 | release archive SHA-256 from the release `checksums.txt` |
+| typos | 1.52.0 | release asset SHA-256 |
+| Helm | 3.22.1 | `get.helm.sh` `.sha256sum` |
+| govulncheck | v1.9.0 | `go install`, checked against sum.golang.org |
+| shfmt | v3.14.1 | `go install`, checked against sum.golang.org |
+| PyYAML | 6.0.3 | wheel hash must be in `requirements-ci.txt`, which lists the PyPI digests |
+
+## Enforced policy
+
+`buildscripts/ci/workflow_policy.py` fails closed. Its narrow stdlib grammar
+accepts only the canonical block form of `on`. A strict PyYAML 6.0.3 load must
+agree with that parse. The load rejects duplicate keys, YAML 1.1 booleans,
+anchors, tags and multiple documents. The inventory is exact, and run/no-run
+results are simulated from the parsed events.
+
+These are errors, not warnings:
+
+- Permissions are exactly `contents: read` at top level, and read-only per job.
+- The concurrency group is
+  `${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}`
+  with cancel-in-progress. A newer Ready run cancels an older one for the same
+  PR. Manual runs never share a group.
+- Runners are GitHub-hosted (`ubuntu-latest`, `ubuntu-24.04`). There are no
+  containers and no reusable or local actions.
+- Every `uses:` line is `owner/repo@<sha> # vX.Y.Z` and matches the pin table.
+- Checkout uses `persist-credentials: false`.
+- setup-go accepts only `go-version-file: go.mod` and the cache options. A job
+  that sets up Go must run a target that checks the toolchain.
+- No `secrets.` references, no `@latest`/`@master`/`@main` and no pipe-to-shell
+  in run steps.
+- The Make targets of each portable workflow and of `go-race.yml` are exact.
+  Every target exists in the Makefile. Race targets must not run in a portable
+  workflow.
+- In the repository, the go.mod toolchain is go1.27.3. The PyYAML pin agrees in
+  `tools.env` and `requirements-ci.txt`. Each checksummed tool version has an
+  amd64 and arm64 hash.
+
+`make ci-policy` installs the pinned PyYAML and runs the validator and its
+tests. It sets `CI_EXPECT_PYYAML_DIR`, so a different `yaml` module on the path
+fails.
+
+## Local reproduction (Linux amd64/arm64)
+
+Use Go 1.27.3 first on `PATH` with `GOTOOLCHAIN=local`. Set
+`CI_TOOLS_DIR=/some/scratch/dir` to keep tools outside the checkout.
 
 ```sh
-python3 buildscripts/ci/workflow_policy.py [--json report.json]
-python3 -m unittest discover -s tests/ci -p 'test_*.py' -v
+make ci-tools            # all pinned tools, checksum-verified
+make ci-policy           # workflow policy + adversarial tests
+make ci-go-version ci-build ci-lint ci-test ci-vulncheck
+make ci-shfmt ci-typos ci-helm-lint ci-crosscompile
+make ci-test-race        # heavy: full -race suite
+make ci-check-gen        # rewrites generated files and go.mod/go.sum: use a scratch clone
 ```
 
-The validator fails closed. Its narrow stdlib grammar accepts only the canonical
-block form of `on`. A strict PyYAML 6.0.3 load must agree with that parse. This load
-rejects duplicate keys, YAML 1.1 `on`/`yes` booleans, anchors, tags and multiple
-documents. The inventory is exact: any unclassified, missing or removed-admin workflow
-fails. Run/no-run results are simulated from the parsed events. The canonical CI
-entrypoint must install the same pinned PyYAML. This is pending stage 2.
+Without `make`, use a pinned PyYAML in a virtualenv:
 
-## Pending stage 2 (not done)
+```sh
+python3 -m venv /tmp/ci-venv
+/tmp/ci-venv/bin/pip install --require-hashes --only-binary=:all: -r buildscripts/ci/requirements-ci.txt
+/tmp/ci-venv/bin/python buildscripts/ci/workflow_policy.py
+/tmp/ci-venv/bin/python -m unittest discover -s tests/ci -p 'test_*.py' -v
+```
 
-- Go 1.27.3 parity for all jobs (inherited `go-version: 1.24.x`).
-- Pin all actions to verified full commit SHAs. Floating `@v4`, `@v5` and
-  `@master` refs are reported as warnings.
-- Read-only default permissions everywhere (`typos.yml` has none).
-- Replace the upstream-only `mint` runner with a runnable job.
-- Fix the concurrency group for manual runs.
-- Add a pinned linter install. `make getdeps` currently pulls the installer from
-  `master`.
-- Run real build/test/lint/security commands with recorded exits and full local
-  proof, then a fresh independent review.
-- Heavy workflows stay manual and unqualified until they are actually run.
+The heavy Makefile targets (`verify*`, `test-iam`, `test-replication`, etc.)
+build through `install-race`. It copies `./minio` to `$(GOPATH)/bin/minio`, so
+run them only on a disposable runner or with a scratch `GOPATH`.
+
+## Known failures and pending gates
+
+- **Spelling (`ci-typos`) fails.** Six findings come from inherited source:
+  `cmd/metacache-walk.go` (2), `cmd/bucket-replication.go`,
+  `cmd/site-replication.go:2651`, and
+  `internal/s3select/simdj/reader_amd64_test.go` (2). The same findings occur at
+  the safety base. The fixes are product-source edits outside this lease, and
+  the gate stays red until they land.
+- **`check-gen` does not cover stringer output.** `go generate` with the
+  pinned `golang.org/x/tools` rewrites 19 `*_string.go` files (codegen style
+  only). This also happens on the unchanged base. `check-gen` only inspects
+  `_gen.go` and `go.sum`, so it passes and `ci-check-gen` lists the drift. Both
+  regenerating the files and widening the check are pending.
+- **Full race (#11).** An earlier local full run was killed by a 4 GiB cgroup
+  OOM. A sharded diagnostic run also hit order-sensitive failures in `cmd`. The
+  race gate is incomplete, not passed.
+- **Lint (#10).** Fifteen files received formatting and
+  `fmt.Fprintf`/dead-assignment fixes. With them, golangci-lint 2.15.0 reports
+  0 issues with the unchanged `.golangci.yml`. The `gomodguard` linter is
+  deprecated in this release; it stays enabled and its warning is visible.
+- **govulncheck** reports one module-level advisory (GO-2026-5932,
+  `golang.org/x/crypto/openpgp`), which is not imported. No imported-package or
+  reachable-symbol findings. Nothing is suppressed.
+- **Heavy workflows were not executed.** They use public upstream images
+  (`quay.io/minio/*`, `docker.io/minio/mint:edge`, etcd, nginx), the public
+  `minio/minio-iam-testing` repository and public release downloads. `mint.yml`
+  now runs on a hosted runner with these job-local prerequisites:
+  - a `docker-compose` shim
+  - `/etc/hosts` entries for the nginx endpoints
+  - a locally built `s3-check-md5`
+  - an image that overlays this checkout's binary on the tag-pinned
+    `RELEASE.2023-08-29T23-07-35Z` image
+
+  Cross-compilation, hosted runs and an independent review are also pending.

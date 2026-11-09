@@ -16,6 +16,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SCRIPT = os.path.join(ROOT, "buildscripts", "ci", "workflow_policy.py")
@@ -48,7 +49,59 @@ jobs:
     steps:
       - run: echo ok
 """
-TAIL = "\npermissions:\n  contents: read\n" + JOBS
+CONCURRENCY = (
+    "\nconcurrency:\n"
+    "  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}\n"
+    "  cancel-in-progress: true\n"
+)
+TAIL = CONCURRENCY + "\npermissions:\n  contents: read\n" + JOBS
+
+CHECKOUT_PIN = "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1"
+SETUP_GO_PIN = "actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0"
+GO_JOB = """
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: %s
+        with:
+          persist-credentials: false
+      - uses: %s
+        with:
+          go-version-file: go.mod
+      - run: make ci-go-version
+""" % (CHECKOUT_PIN, SETUP_GO_PIN)
+GO_TAIL = CONCURRENCY + "\npermissions:\n  contents: read\n" + GO_JOB
+
+# The inherited (pre-restoration) go-lint.yml job body, with the safe triggers.
+INHERITED_GO_LINT = PORTABLE_ON + """
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Go ${{ matrix.go-version }} on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        go-version: [1.24.x]
+        os: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+          check-latest: true
+      - name: Build on ${{ matrix.os }}
+        run: |
+          make
+          make test
+          make test-race
+"""
 
 
 def doc(on_block, head="name: Fixture\n", tail=TAIL):
@@ -69,6 +122,26 @@ class PositiveCases(unittest.TestCase):
         import yaml
 
         self.assertEqual(yaml.__version__, wp.PYYAML_REQUIRED_VERSION)
+        expect = os.environ.get("CI_EXPECT_PYYAML_DIR")
+        if expect:
+            got = os.path.dirname(os.path.dirname(os.path.realpath(yaml.__file__)))
+            self.assertEqual(got, os.path.realpath(expect))
+
+    def test_compliant_go_job(self):
+        r = self.assertClean(wp.PORTABLE, doc(PORTABLE_ON, tail=GO_TAIL))
+        self.assertEqual(r["make_targets"], ["ci-go-version"])
+
+    def test_setup_go_cache_and_secondary_checkout(self):
+        tail = GO_TAIL.replace("go-version-file: go.mod", "go-version-file: go.mod\n          cache: false")
+        tail += (
+            "      - uses: %s\n        with:\n          repository: minio/minio-iam-testing\n"
+            "          path: minio-iam-testing\n          persist-credentials: false\n" % CHECKOUT_PIN
+        )
+        self.assertClean(wp.HEAVY, doc(HEAVY_ON, tail=tail))
+
+    def test_manual_race_target_in_heavy(self):
+        tail = GO_TAIL.replace("make ci-go-version", "make ci-test-race")
+        self.assertClean(wp.HEAVY, doc(HEAVY_ON, tail=tail))
 
     def test_portable_ready_and_manual(self):
         r = self.assertClean(wp.PORTABLE, doc(PORTABLE_ON))
@@ -341,6 +414,121 @@ class NegativeCases(unittest.TestCase):
         self.assertIn("on", data)
         self.assertNotIn(True, data)
 
+    def test_pyyaml_from_unexpected_location(self):
+        with mock.patch.dict(os.environ, {"CI_EXPECT_PYYAML_DIR": tempfile.gettempdir()}):
+            res = wp.Result()
+            self.assertIsNone(wp.yaml_load_strict(doc(HEAVY_ON), res))
+        self.assertTrue(any("expected the pinned install" in e for e in res.errors), res.errors)
+
+    # --- job-level invariants (formerly stage-2 warnings) -----------------
+    def _go(self, old, new, needle, cls=None, count=1):
+        tail = GO_TAIL.replace(old, new, count)
+        self.assertNotEqual(tail, GO_TAIL, "fixture replacement did not apply: %r" % old)
+        return self.assertRejected(cls or wp.HEAVY, doc(HEAVY_ON if cls in (None, wp.HEAVY) else PORTABLE_ON, tail=tail), needle)
+
+    def test_inherited_go_lint_rejected(self):
+        r = check(wp.PORTABLE, "name: Linters and Tests\n" + INHERITED_GO_LINT)
+        joined = " | ".join(r["errors"])
+        for needle in ("concurrency must be exactly", "runs-on '${{ matrix.os }}'",
+                       "must be 'owner/repo@<full sha> # vX.Y.Z'", "not the verified v7.0.1",
+                       "setup-go input 'go-version' is not allowed", "setup-go input 'check-latest'",
+                       "must read go-version-file: go.mod", "persist-credentials: false",
+                       "'test-race' is manual-only"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, joined)
+
+    def test_floating_and_short_refs(self):
+        for ref in ("v4", "master", "v7.0.1", "3d3c42e"):
+            with self.subTest(ref=ref):
+                self._go(CHECKOUT_PIN, "actions/checkout@%s" % ref, "action reference must be")
+
+    def test_unverified_sha(self):
+        self._go(CHECKOUT_PIN, CHECKOUT_PIN.replace("3d3c42e5", "0d3c42e5"), "is not the verified v7.0.1 commit")
+
+    def test_tag_comment_must_match(self):
+        self._go(CHECKOUT_PIN, CHECKOUT_PIN.replace("# v7.0.1", "# v4.2.2"), "does not match verified pin")
+        self._go(CHECKOUT_PIN, CHECKOUT_PIN.replace(" # v7.0.1", ""), "action reference must be")
+        self._go(CHECKOUT_PIN, CHECKOUT_PIN + " extra", "action reference must be")
+
+    def test_quoted_or_spaced_uses(self):
+        self._go("- uses: " + CHECKOUT_PIN, '- uses: "%s"' % CHECKOUT_PIN.split(" #")[0], "action reference must be")
+        self._go("- uses: " + CHECKOUT_PIN, "- uses : " + CHECKOUT_PIN, "action reference must be")
+
+    def test_unknown_pinned_action(self):
+        self._go(CHECKOUT_PIN, "azure/setup-helm@" + "a" * 40 + " # v4.0.0", "not in the verified pin list")
+
+    def test_local_docker_and_reusable_actions(self):
+        self._go("- uses: " + SETUP_GO_PIN, "- uses: ./.github/actions/x", "action reference must be")
+        self._go("- uses: " + SETUP_GO_PIN, "- uses: docker://alpine:3", "action reference must be")
+
+    def test_checkout_credentials(self):
+        self._go("persist-credentials: false", "persist-credentials: true", "persist-credentials: false")
+        self._go("persist-credentials: false", "fetch-depth: 0", "checkout input 'fetch-depth' is not allowed")
+        self._go("persist-credentials: false", "token: x\n          persist-credentials: false",
+                 "checkout input 'token' is not allowed")
+
+    def test_setup_go_inputs(self):
+        self._go("go-version-file: go.mod", "go-version: 1.27.3", "must read go-version-file: go.mod")
+        self._go("go-version-file: go.mod", "go-version-file: go.work", "must read go-version-file: go.mod")
+        self._go("go-version-file: go.mod", "go-version-file: go.mod\n          cached: false",
+                 "setup-go input 'cached' is not allowed")
+        self._go("go-version-file: go.mod", "go-version-file: go.mod\n          cache: 'false'",
+                 "cache must be a boolean")
+
+    def test_runners(self):
+        for runs_on in ("mint", "self-hosted", "[self-hosted, linux]", "${{ matrix.os }}", "windows-latest"):
+            with self.subTest(runs_on=runs_on):
+                self._go("runs-on: ubuntu-latest", "runs-on: %s" % runs_on, "is not one of the GitHub-hosted labels")
+
+    def test_permissions_exact(self):
+        self._go("permissions:\n  contents: read\n", "", "top-level permissions must be exactly")
+        self._go("  contents: read\n", "  contents: read\n  issues: read\n", "top-level permissions must be exactly")
+        self._go("permissions:\n  contents: read\n", "permissions: read-all\n", "top-level permissions must be exactly")
+        self._go("    runs-on:", "    permissions:\n      contents: write\n    runs-on:", "requests write permissions")
+        self._go("    runs-on:", "    permissions: write-all\n    runs-on:", "requests write permissions")
+
+    def test_concurrency_exact(self):
+        self._go("github.event.pull_request.number || github.run_id", "github.head_ref", "concurrency must be exactly")
+        self._go(CONCURRENCY, "", "concurrency must be exactly")
+        self._go("cancel-in-progress: true", "cancel-in-progress: false", "concurrency must be exactly")
+
+    def test_secrets_forbidden(self):
+        self._go("- run: make ci-go-version",
+                 "- run: make ci-go-version\n        env:\n          T: ${{ secrets.GITHUB_TOKEN }}",
+                 "must not reference secrets")
+        self._go("- run: make ci-go-version",
+                 "- run: make ci-go-version\n        env:\n          T: ${{ secrets . BOT_PAT }}",
+                 "must not reference secrets")
+
+    def test_floating_installs_in_run(self):
+        for run in ("go install golang.org/x/vuln/cmd/govulncheck@latest",
+                    "curl -sSfL https://example.invalid/install.sh | sh -s v2",
+                    "curl -sSfL https://example.invalid/i.sh | sudo bash",
+                    "pip install git+https://example.invalid/x@main"):
+            with self.subTest(run=run):
+                self._go("- run: make ci-go-version", "- run: make ci-go-version && " + run, "floating/unpinned")
+
+    def test_go_job_must_verify_toolchain(self):
+        self._go("make ci-go-version", "make verify", "runs no target that verifies the go.mod toolchain")
+
+    def test_checkout_must_come_first(self):
+        tail = GO_TAIL.replace("      - uses: %s\n        with:\n          persist-credentials: false\n" % CHECKOUT_PIN, "")
+        self.assertRejected(wp.HEAVY, doc(HEAVY_ON, tail=tail), "must check out the repository")
+
+    def test_container_job(self):
+        self._go("    runs-on: ubuntu-latest", "    runs-on: ubuntu-latest\n    container: alpine:3",
+                 "container jobs are not allowed")
+
+    def test_race_target_not_portable(self):
+        for target in ("ci-test-race", "test-race"):
+            with self.subTest(target=target):
+                self._go("make ci-go-version", "make ci-go-version\n          make %s" % target,
+                         "is manual-only", cls=wp.PORTABLE)
+
+    def test_empty_steps(self):
+        tail = CONCURRENCY + "\npermissions:\n  contents: read\n\njobs:\n  a:\n    runs-on: ubuntu-latest\n    steps: []\n"
+        self.assertRejected(wp.HEAVY, doc(HEAVY_ON, tail=tail), "non-empty steps list")
+
 
 class DirectoryInventory(unittest.TestCase):
     def setUp(self):
@@ -376,8 +564,11 @@ class DirectoryInventory(unittest.TestCase):
                 os.remove(path)
 
     def test_missing_classified_workflow(self):
-        os.remove(os.path.join(self.wf, "go-lint.yml"))
-        self.assertIn("go-lint.yml: classified workflow is missing", self.errors())
+        for name in ("go-lint.yml", "go-race.yml"):
+            with self.subTest(name=name):
+                os.rename(os.path.join(self.wf, name), os.path.join(self.tmp, name))
+                self.assertIn("%s: classified workflow is missing" % name, self.errors())
+                os.rename(os.path.join(self.tmp, name), os.path.join(self.wf, name))
 
     def test_unknown_file_dir_and_symlink(self):
         with open(os.path.join(self.wf, "notes.txt"), "w") as fh:
@@ -397,6 +588,97 @@ class DirectoryInventory(unittest.TestCase):
             fh.write(text.replace("      - ready_for_review\n", "      - ready_for_review\n      - synchronize\n", 1))
         self.assertIn("go-lint.yml: pull_request types must be exactly", self.errors())
 
+    def _edit(self, name, old, new):
+        path = os.path.join(self.wf, name)
+        with open(path) as fh:
+            text = fh.read()
+        self.assertIn(old, text)
+        with open(path, "w") as fh:
+            fh.write(text.replace(old, new, 1))
+
+    def test_portable_targets_must_match(self):
+        self._edit("go-lint.yml", "        run: make ci-lint\n", "        run: make ci-go-version\n")
+        self.assertIn("go-lint.yml: make targets", self.errors())
+
+    def test_race_moved_back_to_portable(self):
+        self._edit("go-lint.yml", "          make ci-test\n", "          make ci-test\n          make ci-test-race\n")
+        errs = self.errors()
+        self.assertIn("'ci-test-race' is manual-only", errs)
+        self.assertIn("go-lint.yml: make targets", errs)
+
+    def test_race_workflow_must_run_race(self):
+        self._edit("go-race.yml", "make ci-test-race", "make ci-test")
+        self.assertIn("go-race.yml: make targets", self.errors())
+
+    def test_undefined_make_target(self):
+        mk = os.path.join(self.tmp, "Makefile")
+        with open(ROOT + "/Makefile") as fh:
+            text = fh.read()
+        with open(mk, "w") as fh:
+            fh.write(text.replace("\nci-helm-lint:", "\nci-helm-lint-renamed:"))
+        errs = " | ".join(wp.validate_dir(self.wf, makefile=mk)["errors"])
+        self.assertIn("helm-lint.yml: make target 'ci-helm-lint' is not defined", errs)
+        self.assertEqual(wp.validate_dir(self.wf, makefile=ROOT + "/Makefile")["errors"], [])
+
+
+class RepositoryPins(unittest.TestCase):
+    FILES = ("go.mod", "Makefile", "buildscripts/ci/tools.env",
+             "buildscripts/ci/requirements-ci.txt", "buildscripts/ci/install-tools.sh")
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="wfrepo-")
+        for rel in self.FILES:
+            os.makedirs(os.path.dirname(os.path.join(self.tmp, rel)), exist_ok=True)
+            shutil.copy(os.path.join(ROOT, rel), os.path.join(self.tmp, rel))
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp)
+
+    def _edit(self, rel, old, new):
+        path = os.path.join(self.tmp, rel)
+        with open(path) as fh:
+            text = fh.read()
+        self.assertIn(old, text)
+        with open(path, "w") as fh:
+            fh.write(text.replace(old, new, 1))
+
+    def errors(self):
+        return " | ".join(wp.check_repo(self.tmp))
+
+    def test_real_repository_clean(self):
+        self.assertEqual(wp.check_repo(ROOT), [])
+        self.assertEqual(self.errors(), "")
+
+    def test_toolchain_drift(self):
+        self._edit("go.mod", "toolchain go1.27.3", "toolchain go1.24.9")
+        self.assertIn("toolchain directive", self.errors())
+
+    def test_toolchain_missing(self):
+        self._edit("go.mod", "toolchain go1.27.3\n", "")
+        self.assertIn("toolchain directive []", self.errors())
+
+    def test_pyyaml_pin_drift(self):
+        self._edit("buildscripts/ci/tools.env", "PYYAML_VERSION=6.0.3", "PYYAML_VERSION=6.0.2")
+        self.assertIn("PYYAML_VERSION", self.errors())
+
+    def test_pyyaml_lock_drift(self):
+        self._edit("buildscripts/ci/requirements-ci.txt", "PyYAML==6.0.3", "PyYAML==6.0.2")
+        self.assertIn("requirements-ci.txt PyYAML pins", self.errors())
+
+    def test_tool_version_without_checksum(self):
+        self._edit("buildscripts/ci/tools.env", "HELM_VERSION=3.22.1", "HELM_VERSION=3.22.2")
+        errs = self.errors()
+        self.assertIn("no pinned sha256 for helm 3.22.2 amd64", errs)
+        self.assertIn("no pinned sha256 for helm 3.22.2 arm64", errs)
+
+    def test_floating_go_tool(self):
+        self._edit("buildscripts/ci/tools.env", "GOVULNCHECK_VERSION=v1.9.0", "GOVULNCHECK_VERSION=latest")
+        self.assertIn("GOVULNCHECK_VERSION must be an exact", self.errors())
+
+    def test_malformed_tools_env(self):
+        self._edit("buildscripts/ci/tools.env", "SHFMT_VERSION=v3.14.1", "export SHFMT_VERSION=v3.14.1")
+        self.assertIn("not a plain NAME=value line", self.errors())
+
 
 class RepositoryMatrix(unittest.TestCase):
     """Derived run/no-run for the real tree, computed from parsed events."""
@@ -408,6 +690,18 @@ class RepositoryMatrix(unittest.TestCase):
     def test_no_errors_and_exact_inventory(self):
         self.assertEqual(self.report["errors"], [])
         self.assertEqual(sorted(self.report["workflows"]), sorted(wp.INVENTORY))
+        self.assertEqual(wp.validate_dir(WF_DIR, makefile=os.path.join(ROOT, "Makefile"))["errors"], [])
+
+    def test_no_warnings_left(self):
+        for name, entry in self.report["workflows"].items():
+            with self.subTest(workflow=name):
+                self.assertEqual(entry["warnings"], [])
+
+    def test_race_is_manual_only(self):
+        runs_race = {n for n, e in self.report["workflows"].items()
+                     if set(e["make_targets"]) & set(wp.MANUAL_ONLY_TARGETS)}
+        self.assertEqual(runs_race, {"go-race.yml"})
+        self.assertEqual(self.report["workflows"]["go-race.yml"]["runs"], ["dispatch"])
 
     def test_no_forbidden_scenario_runs(self):
         forbidden = {s["id"] for s in wp.SCENARIOS if s["event"] not in ("workflow_dispatch", "pull_request")}

@@ -65,15 +65,22 @@ path stays `github.com/minio/minio` for compatibility.
 
 ### 2. Start an isolated local server
 
-In the same terminal, check that TCP port **19000** is free. If it is occupied,
+In the same terminal, check that TCP port **19000** is free on both loopback
+families (IPv4 and IPv6, when available). If it is occupied,
 choose another free integer port and replace `19000` in the check, server and
 health commands. Do not stop an existing service to free it.
 
 ```sh
 python3 - <<'PYPORT'
+import errno
 import socket
-with socket.socket() as listener:
-    listener.bind(("127.0.0.1", 19000))
+for family, host in [(socket.AF_INET, "127.0.0.1"), (socket.AF_INET6, "::1")]:
+    try:
+        with socket.socket(family) as listener:
+            listener.bind((host, 19000))
+    except OSError as error:
+        if family != socket.AF_INET6 or error.errno not in (errno.EAFNOSUPPORT, errno.EADDRNOTAVAIL):
+            raise
 print("Loopback port 19000 is free")
 PYPORT
 ```

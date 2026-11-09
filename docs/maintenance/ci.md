@@ -136,17 +136,22 @@ run them only on a disposable runner or with a scratch `GOPATH`.
 
 ## Known failures and pending gates
 
-- **Spelling (`ci-typos`) fails.** Six findings come from inherited source:
-  `cmd/metacache-walk.go` (2), `cmd/bucket-replication.go`,
-  `cmd/site-replication.go:2651`, and
-  `internal/s3select/simdj/reader_amd64_test.go` (2). The same findings occur at
-  the safety base. The fixes are product-source edits outside this lease, and
-  the gate stays red until they land.
-- **`check-gen` does not cover stringer output.** `go generate` with the
-  pinned `golang.org/x/tools` rewrites 19 `*_string.go` files (codegen style
-  only). This also happens on the unchanged base. `check-gen` only inspects
-  `_gen.go` and `go.sum`, so it passes and `ci-check-gen` lists the drift. Both
-  regenerating the files and widening the check are pending.
+- **Spelling (#12).** `make ci-typos` (typos 1.52.0, unchanged `.typos.toml`)
+  had six inherited findings. It now passes after six comment and local-name
+  fixes:
+  - two comment typos in `cmd/bucket-replication.go` and
+    `cmd/site-replication.go`
+  - local `sterr` renamed to `statErr` in `cmd/metacache-walk.go`
+  - test-local `cpy` renamed to `itemCopy` in
+    `internal/s3select/simdj/reader_amd64_test.go`
+- **Stringer output is not checked (#13, deferred).** `go generate` with the
+  pinned `golang.org/x/tools` rewrites 19 committed `*_string.go` files. The
+  same happens on the unchanged base. The new `String()` methods differ in
+  their int conversion, bounds check and index expressions, so the change is
+  not proven equivalent. `check-gen` still inspects only `_gen.go` and `go.sum`,
+  so it passes; `ci-check-gen` lists the drift. These files are not claimed to
+  match their generator. Regenerating them and widening the check are deferred
+  to #13.
 - **Full race (#11).** An earlier local full run was killed by a 4 GiB cgroup
   OOM. A sharded diagnostic run also hit order-sensitive failures in `cmd`. The
   race gate is incomplete, not passed.

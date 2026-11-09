@@ -1,170 +1,174 @@
-> [!NOTE]
-> **THIS REPOSITORY IS NO LONGER MAINTAINED.**
->
-> **Alternatives:**
-> - **[AIStor Free](https://min.io/download)** — Full-featured, standalone edition for community use (free license)
-> - **[AIStor Enterprise](https://min.io/pricing)** — Distributed edition with commercial support
+# MinIO — unofficial maintenance fork
 
----
+**UNOFFICIAL, independent fork:** [relvo-labs/minio](https://github.com/relvo-labs/minio)
+is not affiliated with or endorsed by MinIO, Inc. The MinIO name is retained;
+MinIO is a trademark of MinIO, Inc.
 
-# MinIO Quickstart Guide
+MinIO is an S3-compatible object store. This fork inherits the upstream server
+source for storing objects in buckets and accessing them through S3 clients.
+The upstream [minio/minio](https://github.com/minio/minio) repository is archived.
+This fork focuses on source maintenance, dependency security, CI and source
+compatibility. It offers no newly certified feature set, performance guarantee
+or enterprise support service.
 
-[![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Docker Pulls](https://img.shields.io/docker/pulls/minio/minio.svg?maxAge=604800)](https://hub.docker.com/r/minio/minio/) [![license](https://img.shields.io/badge/license-AGPL%20V3-blue)](https://github.com/minio/minio/blob/master/LICENSE)
+**Maintenance qualification is in progress.** CI implementation is in place,
+but hosted evidence and broader qualification are not confirmed here. A local
+source build or smoke test does not qualify production use, distributed storage,
+migrations or recovery. See the [CI runbook](docs/maintenance/ci.md) for gates
+and known boundaries, including the [stringer coverage gap (#13)](https://github.com/relvo-labs/minio/issues/13),
+manual heavy integrations and pending hosted evidence.
 
-[![MinIO](https://raw.githubusercontent.com/minio/minio/master/.github/logo.svg?sanitize=true)](https://min.io)
+As of **2026-11-09**, this fork has no GitHub releases. Release, binary and image
+publishing and tag policy remain undecided and are not authorized. Build the
+checked-out fork source to evaluate it locally.
 
-MinIO is a high-performance, S3-compatible object storage solution released under the GNU AGPL v3.0 license.
-Designed for speed and scalability, it powers AI/ML, analytics, and data-intensive workloads with industry-leading performance.
+[Build and try locally](#build-and-try-locally) ·
+[Find your next step](#find-your-next-step) ·
+[Security reporting limits](SECURITY.md) · [Contribute](CONTRIBUTING.md)
 
-- S3 API Compatible – Seamless integration with existing S3 tools
-- Built for AI & Analytics – Optimized for large-scale data pipelines
-- High Performance – Ideal for demanding storage workloads.
+## Build and try locally
 
-This README provides instructions for building MinIO from source and deploying onto baremetal hardware.
-Use the [MinIO Documentation](https://github.com/minio/docs) project to build and host a local copy of the documentation.
+This is a single-server local smoke test with synthetic data. Use a disposable
+checkout and an empty temporary directory, never an existing storage directory.
+The server binds only to loopback; the browser console is disabled for this test.
 
-## MinIO is Open Source Software
+### 1. Select and build the fork source
 
-We designed MinIO as Open Source software for the Open Source software community. We encourage the community to remix, redesign, and reshare MinIO under the terms of the AGPLv3 license.
+Prerequisites: Linux, Git, a Go toolchain, Python 3 (port check and random
+credentials), and curl. [go.mod](go.mod) declares minimum language **Go 1.26.0**
+and preferred toolchain **Go 1.27.3**. Use Go 1.27.3 on `PATH` for this example.
+The build uses two Go processors and a 3 GiB Go memory target; these are runtime
+tuning values, not a hard memory cap or deployment sizing guidance.
 
-All usage of MinIO in your application stack requires validation against AGPLv3 obligations, which include but are not limited to the release of modified code to the community from which you have benefited. Any commercial/proprietary usage of the AGPLv3 software, including repackaging or reselling services/features, is done at your own risk.
-
-The AGPLv3 provides no obligation by any party to support, maintain, or warranty the original or any modified work.
-All support is provided on a best-effort basis through Github and our [Slack](https://slack.min.io) channel, and any member of the community is welcome to contribute and assist others in their usage of the software.
-
-MinIO [AIStor](https://www.min.io/product/aistor) includes enterprise-grade support and licensing for workloads which require commercial or proprietary usage and production-level SLA/SLO-backed support. For more information, [reach out for a quote](https://min.io/pricing).
-
-## Source-Only Distribution
-
-**Important:** The MinIO community edition is now distributed as source code only. We will no longer provide pre-compiled binary releases for the community version.
-
-### Installing Latest MinIO Community Edition
-
-To use MinIO community edition, you have two options:
-
-1. **Install from source** using `go install github.com/minio/minio@latest` (recommended)
-2. **Build a Docker image** from the provided Dockerfile
-
-See the sections below for detailed instructions on each method.
-
-### Legacy Binary Releases
-
-Historical pre-compiled binary releases remain available for reference but are no longer maintained:
-
-- GitHub Releases: https://github.com/minio/minio/releases
-- Direct downloads: https://dl.min.io/server/minio/release/
-
-**These legacy binaries will not receive updates.** We strongly recommend using source builds for access to the latest features, bug fixes, and security updates.
-
-## Install from Source
-
-Use the following commands to compile and run a standalone MinIO server from source.
-If you do not have a working Golang environment, please follow [How to install Golang](https://golang.org/doc/install). Minimum version required is [go1.24](https://golang.org/dl/#stable)
+Start with a clean checkout from this fork:
 
 ```sh
-go install github.com/minio/minio@latest
+git clone https://github.com/relvo-labs/minio.git minio-fork
+cd minio-fork
+git rev-parse HEAD
 ```
 
-You can alternatively run `go build` and use the `GOOS` and `GOARCH` environment variables to control the OS and architecture target.
-For example:
-
-```
-env GOOS=linux GOARCH=arm64 go build
-```
-
-Start MinIO by running `minio server PATH` where `PATH` is any empty folder on your local filesystem.
-
-The MinIO deployment starts using default root credentials `minioadmin:minioadmin`.
-You can test the deployment using the MinIO Console, an embedded web-based object browser built into MinIO Server.
-Point a web browser running on the host machine to <http://127.0.0.1:9000> and log in with the root credentials.
-You can use the Browser to create buckets, upload objects, and browse the contents of the MinIO server.
-
-You can also connect using any S3-compatible tool, such as the MinIO Client `mc` commandline tool:
+Select the branch or commit you intend to evaluate before building. Unmerged
+maintenance candidates may be on non-default branches; the default branch need
+not contain them. Record the full commit ID with your local results.
 
 ```sh
-mc alias set local http://localhost:9000 minioadmin minioadmin
-mc admin info local
+go version
+mkdir -p .bin
+CGO_ENABLED=0 GOMAXPROCS=2 GOGC=50 GOMEMLIMIT=3GiB GOTOOLCHAIN=local \
+  go build -o .bin/minio .
 ```
 
-See [Test using MinIO Client `mc`](#test-using-minio-client-mc) for more information on using the `mc` commandline tool.
-For application developers, see <https://docs.min.io/enterprise/aistor-object-store/developers/sdk/> to view MinIO SDKs for supported languages.
+This creates a local executable, not a published fork artifact. The Go module
+path stays `github.com/minio/minio` for compatibility.
+**`go install github.com/minio/minio@latest` fetches upstream, not this fork.**
 
-> [!NOTE]
-> Production environments using compiled-from-source MinIO binaries do so at their own risk.
-> The AGPLv3 license provides no warranties nor liabilities for any such usage.
+### 2. Start an isolated local server
 
-## Build Docker Image
-
-You can use the `docker build .` command to build a Docker image on your local host machine.
-You must first [build MinIO](#install-from-source) and ensure the `minio` binary exists in the project root.
-
-The following command builds the Docker image using the default `Dockerfile` in the root project directory with the repository and image tag `myminio:minio`
+In the same terminal, check that TCP port **19000** is free. If it is occupied,
+choose another free integer port and replace `19000` in the check, server and
+health commands. Do not stop an existing service to free it.
 
 ```sh
-docker build -t myminio:minio .
+python3 - <<'PYPORT'
+import socket
+with socket.socket() as listener:
+    listener.bind(("127.0.0.1", 19000))
+print("Loopback port 19000 is free")
+PYPORT
 ```
 
-Use `docker image ls` to confirm the image exists in your local repository.
-You can run the server using standard Docker invocation:
+Create fresh local state and long random test credentials. Keep them private;
+do not paste credentials, personal data or real host details into issues.
+Run these commands in one shell and leave the server in the foreground:
 
 ```sh
-docker run -p 9000:9000 -p 9001:9001 myminio:minio server /tmp/minio --console-address :9001
+umask 077
+demo=$(mktemp -d "${TMPDIR:-/tmp}/minio-fork-demo.XXXXXXXX")
+mkdir -p "$demo/home" "$demo/config" "$demo/data"
+root_user=$(python3 -c 'import secrets; print(secrets.token_hex(16))')
+root_password=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
+env -i PATH="$PATH" HOME="$demo/home" \
+  MINIO_ROOT_USER="$root_user" MINIO_ROOT_PASSWORD="$root_password" \
+  MINIO_BROWSER=off GOMAXPROCS=2 GOGC=50 GOMEMLIMIT=3GiB \
+  .bin/minio --quiet --config-dir "$demo/config" server \
+  --address 127.0.0.1:19000 "$demo/data"
 ```
 
-Complete documentation for building Docker containers, managing custom images, or loading images into orchestration platforms is out of scope for this documentation.
-You can modify the `Dockerfile` and `dockerscripts/docker-entrypoint.sh` as-needed to reflect your specific image requirements.
+The fresh HOME, config and data directories isolate this example from your
+normal server configuration. `env -i` also excludes inherited MinIO settings.
+The generated credentials are for this temporary local server only.
 
-See the [MinIO Container](https://docs.min.io/community/minio-object-store/operations/deployments/baremetal-deploy-minio-as-a-container.html#deploy-minio-container) documentation for more guidance on running MinIO within a Container image.
+### 3. Observe the first success
 
-## Install using Helm Charts
-
-There are two paths for installing MinIO onto Kubernetes infrastructure:
-
-- Use the [MinIO Operator](https://github.com/minio/operator)
-- Use the community-maintained [Helm charts](https://github.com/minio/minio/tree/master/helm/minio)
-
-See the [MinIO Documentation](https://docs.min.io/community/minio-object-store/operations/deployments/kubernetes.html) for guidance on deploying using the Operator.
-The Community Helm chart has instructions in the folder-level README.
-
-## Test MinIO Connectivity
-
-### Test using MinIO Console
-
-MinIO Server comes with an embedded web based object browser.
-Point your web browser to <http://127.0.0.1:9000> to ensure your server has started successfully.
-
-> [!NOTE]
-> MinIO runs console on random port by default, if you wish to choose a specific port use `--console-address` to pick a specific interface and port.
-
-### Test using MinIO Client `mc`
-
-`mc` provides a modern alternative to UNIX commands like ls, cat, cp, mirror, diff etc. It supports filesystems and Amazon S3 compatible cloud storage services.
-
-The following commands set a local alias, validate the server information, create a bucket, copy data to that bucket, and list the contents of the bucket.
+From a second terminal on the same machine, run:
 
 ```sh
-mc alias set local http://localhost:9000 minioadmin minioadmin
-mc admin info
-mc mb data
-mc cp ~/Downloads/mydata data/
-mc ls data/
+curl --noproxy '*' --fail --silent --show-error \
+  --retry 20 --retry-connrefused --retry-delay 1 --max-time 2 \
+  --output /dev/null --write-out '%{http_code}\n' \
+  http://127.0.0.1:19000/minio/health/ready
 ```
 
-Follow the MinIO Client [Quickstart Guide](https://docs.min.io/community/minio-object-store/reference/minio-mc.html#quickstart) for further instructions.
+Expected output: **`200`**, with exit status zero. This confirms that the local
+server answers its readiness endpoint. It does not test object operations or
+the browser UI. If it fails, inspect the local server output and verify the
+chosen port; a successful compile alone is not a running-server check.
 
-## Explore Further
+For S3 integration work, use a client against `http://127.0.0.1:19000` with the
+generated credentials available in the first shell. Independently verify your
+required create, upload, download and delete operations with synthetic data.
+Avoid exposing this HTTP example beyond the local machine.
 
-- [The MinIO documentation website](https://docs.min.io/community/minio-object-store/index.html)
-- [MinIO Erasure Code Overview](https://docs.min.io/community/minio-object-store/operations/concepts/erasure-coding.html)
-- [Use `mc` with MinIO Server](https://docs.min.io/community/minio-object-store/reference/minio-mc.html)
-- [Use `minio-go` SDK with MinIO Server](https://docs.min.io/enterprise/aistor-object-store/developers/sdk/go/)
+### 4. Stop and remove temporary data
 
-## Contribute to MinIO Project
+Press **Ctrl-C in the server terminal** and wait for it to exit. Only then, in
+that same shell, remove the temporary directory created above:
 
-Please follow MinIO [Contributor's Guide](https://github.com/minio/minio/blob/master/CONTRIBUTING.md) for guidance on making new contributions to the repository.
+```sh
+unset root_user root_password
+case "$demo" in
+  "${TMPDIR:-/tmp}"/minio-fork-demo.*) rm -rf -- "$demo" ;;
+esac
+unset demo
+```
 
-## License
+This deletes the example's data and configuration. Keep any data you need
+elsewhere before cleanup. The checkout and `.bin/minio` remain local files;
+you can remove the disposable checkout separately after finishing evaluation.
 
-- MinIO source is licensed under the [GNU AGPLv3](https://github.com/minio/minio/blob/master/LICENSE).
-- MinIO [documentation](https://github.com/minio/minio/tree/master/docs) is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
-- [License Compliance](https://github.com/minio/minio/blob/master/COMPLIANCE.md)
+## Find your next step
+
+| Task | Start here |
+| --- | --- |
+| Evaluate the local server | [Build and try locally](#build-and-try-locally) |
+| Integrate an S3 client | [Upstream minio-go SDK](https://github.com/minio/minio-go); verify against your selected fork revision |
+| Report a reproducible, non-sensitive bug | [Fork Issues](https://github.com/relvo-labs/minio/issues), with commit ID and a synthetic reproduction |
+| Ask about a security contact channel | [Security policy](SECURITY.md) and [issue #4](https://github.com/relvo-labs/minio/issues/4); no exploit details in public |
+| Contribute a change | [Contribution guide](CONTRIBUTING.md) and [maintenance plan](docs/maintenance/plan.md) |
+| Reproduce validation | [Canonical CI runbook](docs/maintenance/ci.md), including prerequisites and incomplete gates |
+
+## Inherited references
+
+The [docs tree](docs), [Helm chart](helm/minio) and Dockerfiles contain inherited
+upstream guidance, URLs and image defaults. They are not qualified fork
+deployment instructions. In particular, the root `Dockerfile` starts from
+`minio/minio:latest`; it does not build this checkout's server source.
+Upstream `dl.min.io` downloads, `minio/minio` or `quay.io/minio/*` images,
+`charts.min.io`, enterprise/AIStor documentation, sales links and Slack are
+upstream references, not this fork's distribution or support channels.
+The upstream [documentation project](https://github.com/minio/docs) is also
+historical context; check applicability to the exact source you build.
+
+## Attribution and licensing
+
+MinIO originated with MinIO, Inc. Upstream copyright and licensing notices are
+retained in [LICENSE](LICENSE), [NOTICE](NOTICE), [CREDITS](CREDITS) and the source
+files. MinIO source is licensed under the GNU AGPLv3; see the preserved license.
+
+The inherited README separately identifies MinIO [documentation](docs) as
+licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+That upstream documentation attribution is retained here; this statement does
+not relicense all files in this repository. See existing file notices and the
+inherited [License Compliance](COMPLIANCE.md) document. Its vendor commercial
+licensing references are upstream context, not an offer from this fork.

@@ -1,55 +1,58 @@
-# MinIO Contribution Guide [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Docker Pulls](https://img.shields.io/docker/pulls/minio/minio.svg?maxAge=604800)](https://hub.docker.com/r/minio/minio/)
+# MinIO contribution guide — unofficial fork
 
-``MinIO`` community welcomes your contribution. To make the process as seamless as possible, we recommend you read this contribution guide.
+This guide is for [relvo-labs/minio](https://github.com/relvo-labs/minio), an
+independent, unofficial maintenance fork, not affiliated with or endorsed by
+MinIO, Inc. Route contributions and non-sensitive bug reports to this fork.
+Read [SECURITY.md](SECURITY.md) before sharing a suspected vulnerability;
+there is currently no approved private reporting channel.
 
 ## Development Workflow
 
-Start by forking the MinIO GitHub repository, make changes in a branch and then send a pull request. We encourage pull requests to discuss code changes. Here are the steps in details:
+Read [AGENTS.md](AGENTS.md), the [maintenance plan](docs/maintenance/plan.md)
+and the [fork-maintenance skill](.agent/skills/fork-maintenance/SKILL.md)
+before changing files. Link work to a
+[fork issue](https://github.com/relvo-labs/minio/issues), use a non-default
+branch and open a Draft checkpoint. Preserve upstream notices and compatibility
+boundaries. Keep credentials and operational data out of reports and tests.
 
 ### Setup your MinIO GitHub Repository
 
-Fork [MinIO upstream](https://github.com/minio/minio/fork) source repository to your own personal repository. Copy the URL of your MinIO fork (you will need it for the `git clone` command below).
-
-```sh
-git clone https://github.com/minio/minio
-cd minio
-go install -v
-ls $(go env GOPATH)/bin/minio
-```
-
-### Set up git remote as ``upstream``
-
-```sh
-$ cd minio
-$ git remote add upstream https://github.com/minio/minio
-$ git fetch upstream
-$ git merge upstream/master
-...
-```
+Fork [relvo-labs/minio](https://github.com/relvo-labs/minio/fork) to your own
+repository and clone that fork. For a local source build and first readiness
+check, follow the [README](README.md#build-and-try-locally). The module path
+remains `github.com/minio/minio`; installing that path at `@latest` fetches
+upstream rather than this fork.
 
 ### Create your feature branch
 
 Before making code changes, make sure you create a separate branch for these changes
 
 ```
-git checkout -b my-new-feature
+git checkout -b docs/issue-4-description
 ```
 
 ### Test MinIO server changes
 
-After your code changes, make sure
+Add relevant tests for code changes. Use the canonical
+[CI runbook](docs/maintenance/ci.md#local-reproduction-linux-amd64arm64)
+for actual Make targets, pinned-tool setup, Go 1.27.3 selection and resource
+preconditions. It also documents incomplete gates, including stringer coverage
+(#13) and manual heavy integrations. Run generation checks in a scratch clone:
+they rewrite files. Heavy targets can install into `GOPATH/bin`, so follow the
+runbook's disposable-runner or scratch-`GOPATH` requirement.
 
-- To add test cases for the new code. If you have questions about how to do it, please ask on our [Slack](https://slack.min.io) channel.
-- To run `make verifiers`
-- To squash your commits into a single commit. `git rebase -i`. It's okay to force update your pull request.
-- To run `make test` and `make build` completes.
+Record the exact source commit, command exits and limitations. A successful
+source build does not establish production or release acceptance.
 
 ### Commit changes
 
-After verification, commit your changes. This is a [great post](https://chris.beams.io/posts/git-commit/) on how to write useful commit messages
+After verification, commit your changes. Repository maintenance commits use
+the identity required by [AGENTS.md](AGENTS.md), set per process:
 
 ```
-git commit -am 'Add some feature'
+GIT_AUTHOR_NAME=Lei-k GIT_AUTHOR_EMAIL=qwe17235@gmail.com \
+GIT_COMMITTER_NAME=Lei-k GIT_COMMITTER_EMAIL=qwe17235@gmail.com \
+  git commit -m 'docs: clarify fork guidance (issue #4)'
 ```
 
 ### Push to the branch
@@ -57,12 +60,18 @@ git commit -am 'Add some feature'
 Push your locally committed changes to the remote origin (your fork)
 
 ```
-git push origin my-new-feature
+git push origin docs/issue-4-description
 ```
 
 ### Create a Pull Request
 
-Pull requests can be created via GitHub. Refer to [this document](https://help.github.com/articles/creating-a-pull-request/) for detailed steps on how to create a pull request. After a Pull Request gets peer reviewed and approved, it will be merged.
+Open a Draft pull request against the agreed base branch; stacked maintenance
+work may target a predecessor branch. Draft status alone is not a CI safeguard.
+Validation runs only by manual dispatch or conversion to Ready, subject to the
+[event policy](docs/maintenance/ci.md#event-matrix). Keep the checkpoint Draft
+until qualification and independent review of its exact HEAD are complete.
+Merge, release/image publication, deployment and repository settings changes
+require explicit owner authority.
 
 ## FAQs
 
@@ -79,4 +88,6 @@ To remove a dependency
 
 ### What are the coding guidelines for MinIO?
 
-``MinIO`` is fully conformant with Golang style. Refer: [Effective Go](https://github.com/golang/go/wiki/CodeReviewComments) article from Golang project. If you observe offending code, please feel free to send a pull request or ping us on [Slack](https://slack.min.io).
+Follow Go style and the repository's existing conventions. Refer to the Go
+project's [code review comments](https://go.dev/wiki/CodeReviewComments).
+Discuss actionable changes in this fork's issues or pull requests.

@@ -1,42 +1,43 @@
-# Security Policy
+# Security policy for the unofficial MinIO fork
 
-## Supported Versions
+[relvo-labs/minio](https://github.com/relvo-labs/minio) is an independent,
+**unofficial fork**, not affiliated with or endorsed by MinIO, Inc.
+This policy concerns this fork's source and dependencies.
 
-We always provide security updates for the [latest release](https://github.com/minio/minio/releases/latest).
-Whenever there is a security update you just need to upgrade to the latest version.
+## Maintenance scope
 
-## Reporting a Vulnerability
+The fork focuses on source maintenance, dependency security, CI and
+compatibility. As of **2026-11-09**, it has no GitHub releases and no published
+supported-version matrix. Artifact publishing and tag policy remain undecided.
+Upstream releases and images do not establish a supported fork version.
+There is no guaranteed response time, fix schedule or enterprise support SLA.
+The [CI runbook](docs/maintenance/ci.md) records validation boundaries;
+successful local checks do not certify production security.
 
-All security bugs in [minio/minio](https://github,com/minio/minio) (or other minio/* repositories)
-should be reported by email to security@min.io. Your email will be acknowledged within 48 hours,
-and you'll receive a more detailed response to your email within 72 hours indicating the next steps
-in handling your report.
+## Reporting limitation: no approved private channel
 
-Please, provide a detailed explanation of the issue. In particular, outline the type of the security
-issue (DoS, authentication bypass, information disclose, ...) and the assumptions you're making (e.g. do
-you need access credentials for a successful exploit).
+As of **2026-11-09**, GitHub private vulnerability reporting is **disabled** for
+this fork, and no dedicated fork security contact has been approved.
+There is currently no approved private submission route documented here.
+Channel activation is an owner action tracked in
+[issue #4](https://github.com/relvo-labs/minio/issues/4)
+(`OWNER_ACTION_REQUIRED:minio-private-reporting`).
 
-If you have not received a reply to your email within 48 hours or you have not heard from the security team
-for the past five days please contact the security team directly:
+You may ask a **non-sensitive contact-channel question** in
+[this fork's Issues](https://github.com/relvo-labs/minio/issues).
+Do **not** post undisclosed exploit details, credentials, logs containing
+personal data, or real host/customer details in public issues, pull requests
+or comments. Keep sensitive material private while an approved channel is
+unavailable; a public channel question must not include a vulnerability payload.
 
-- Primary security coordinator: aead@min.io
-- Secondary coordinator: harsha@min.io
-- If you receive no response: dev@min.io
+Inherited upstream email addresses, Slack and vendor policies are not this
+fork's security reporting channels. Do not send fork findings to
+`security@min.io` as a substitute for a fork contact.
 
-### Disclosure Process
+## Preparing information
 
-MinIO uses the following disclosure process:
-
-1. Once the security report is received one member of the security team tries to verify and reproduce
-   the issue and determines the impact it has.
-2. A member of the security team will respond and either confirm or reject the security report.
-   If the report is rejected the response explains why.
-3. Code is audited to find any potential similar problems.
-4. Fixes are prepared for the latest release.
-5. On the date that the fixes are applied a security advisory will be published on <https://blog.min.io>.
-   Please inform us in your report email whether MinIO should mention your contribution w.r.t. fixing
-   the security issue. By default MinIO will **not** publish this information to protect your privacy.
-
-This process can take some time, especially when coordination is required with maintainers of other projects.
-Every effort will be made to handle the bug in as timely a manner as possible, however it's important that we
-follow the process described above to ensure that disclosures are handled consistently.
+The [vulnerability report guidance](VULNERABILITY_REPORT.md) describes what to
+prepare privately for a future approved channel. It does not activate a
+reporting service or promise a disclosure process. For ordinary non-sensitive
+bugs, use the fork issue tracker with a synthetic reproduction and exact
+source commit; follow [CONTRIBUTING.md](CONTRIBUTING.md).

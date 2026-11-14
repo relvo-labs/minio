@@ -71,6 +71,9 @@ func (cr *s3UnsignedChunkedReader) Close() (err error) {
 // Read - implements `io.Reader`, which transparently decodes
 // the incoming AWS Signature V4 streaming signature.
 func (cr *s3UnsignedChunkedReader) Read(buf []byte) (n int, err error) {
+	if cr.err != nil {
+		return 0, cr.err
+	}
 	// First, if there is any unread data, copy it to the client
 	// provided buffer.
 	if cr.offset > 0 {

@@ -8,7 +8,9 @@ package cmd
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/xml"
@@ -298,6 +300,98 @@ func TestTrailerAuthPolicyConditions(t *testing.T) {
 				values := getConditionValues(req, "", auth.AnonymousCredentials)
 				if values["signatureversion"][0] != wantVersion || values["authType"][0] != wantAuth {
 					t.Errorf("signatureversion/authType = %q/%q, want %q/%q", values["signatureversion"][0], values["authType"][0], wantVersion, wantAuth)
+				}
+			})
+		}
+	}
+}
+
+func TestUnsignedTrailerExtractLarge(t *testing.T) {
+	ExecObjectLayerAPITest(ExecObjectLayerAPITestArgs{t: t, objAPITest: testUnsignedTrailerExtractLarge})
+}
+
+func testUnsignedTrailerExtractLarge(obj ObjectLayer, instance, bucket string, router http.Handler, cred auth.Credentials, t *testing.T) {
+	entries := make(map[string][]byte)
+	var archive bytes.Buffer
+	tw := tar.NewWriter(&archive)
+	for i := range 3 {
+		name := fmt.Sprintf("entry-%d.bin", i)
+		// Deterministic, poorly compressible data keeps even the gzip upload
+		// larger than the signer's 64 KiB aws-chunked payload size.
+		content := make([]byte, 96*1024)
+		for offset := 0; offset < len(content); offset += sha256.Size {
+			sum := sha256.Sum256(fmt.Appendf(nil, "%s/%d", name, offset))
+			copy(content[offset:], sum[:])
+		}
+		entries[name] = content
+		if err := tw.WriteHeader(&tar.Header{Name: name, Mode: 0o600, Size: int64(len(content))}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := tw.Write(content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := tw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	for _, compressed := range []bool{false, true} {
+		payload := archive.Bytes()
+		if compressed {
+			var buf bytes.Buffer
+			gz := gzip.NewWriter(&buf)
+			if _, err := gz.Write(payload); err != nil {
+				t.Fatal(err)
+			}
+			if err := gz.Close(); err != nil {
+				t.Fatal(err)
+			}
+			payload = buf.Bytes()
+		}
+		if len(payload) <= 64*1024 {
+			t.Fatalf("archive must span multiple aws-chunked chunks: %d bytes", len(payload))
+		}
+		for _, badChecksum := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/gzip=%t/bad-checksum=%t", instance, compressed, badChecksum), func(t *testing.T) {
+				prefix := fmt.Sprintf("large-extract-%t-%t", compressed, badChecksum)
+				req, err := http.NewRequest(http.MethodPut, "http://localhost/"+bucket+"/"+prefix, bytes.NewReader(payload))
+				if err != nil {
+					t.Fatal(err)
+				}
+				req.Header.Set(xhttp.AmzSnowballExtract, "true")
+				req.Header.Set(xhttp.MinIOSnowballPrefix, prefix)
+				req.Header.Set(xhttp.AmzContentSha256, unsignedPayloadTrailer)
+				checksum := unsignedTrailerCRC(payload)
+				if badChecksum {
+					checksum = unsignedTrailerCRC([]byte("wrong archive checksum"))
+				}
+				req = signer.SignV4Trailer(*req, cred.AccessKey, cred.SecretKey, "", globalSite.Region(), http.Header{"X-Amz-Checksum-Crc32": {checksum}})
+				rec := httptest.NewRecorder()
+				router.ServeHTTP(rec, req)
+				if badChecksum {
+					var response APIErrorResponse
+					if err := xml.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+						t.Fatalf("expected checksum error XML, status %d: %v", rec.Code, err)
+					}
+					want := errorCodes.ToAPIErr(ErrContentChecksumMismatch)
+					if rec.Code != want.HTTPStatusCode || response.Code != want.Code {
+						t.Errorf("status/code = %d/%s, want %d/%s", rec.Code, response.Code, want.HTTPStatusCode, want.Code)
+					}
+					return
+				}
+				if rec.Code != http.StatusOK {
+					t.Errorf("status = %d, want 200: %s", rec.Code, rec.Body.String())
+				}
+				for name, want := range entries {
+					reader, err := obj.GetObjectNInfo(context.Background(), bucket, prefix+"/"+name, nil, nil, ObjectOptions{})
+					if err != nil {
+						t.Errorf("extracted %s: %v", name, err)
+						continue
+					}
+					got, err := io.ReadAll(reader)
+					reader.Close()
+					if err != nil || !bytes.Equal(got, want) {
+						t.Errorf("extracted %s content differs: err=%v", name, err)
+					}
 				}
 			})
 		}

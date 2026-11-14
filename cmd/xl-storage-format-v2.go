@@ -31,11 +31,11 @@ import (
 	"github.com/cespare/xxhash/v2"
 	"github.com/google/uuid"
 	jsoniter "github.com/json-iterator/go"
-	"github.com/minio/minio/internal/bpool"
-	"github.com/minio/minio/internal/bucket/lifecycle"
-	"github.com/minio/minio/internal/bucket/replication"
-	"github.com/minio/minio/internal/config/storageclass"
-	xhttp "github.com/minio/minio/internal/http"
+	"github.com/relvo-labs/granary/internal/bpool"
+	"github.com/relvo-labs/granary/internal/bucket/lifecycle"
+	"github.com/relvo-labs/granary/internal/bucket/replication"
+	"github.com/relvo-labs/granary/internal/config/storageclass"
+	xhttp "github.com/relvo-labs/granary/internal/http"
 	"github.com/tinylib/msgp/msgp"
 )
 

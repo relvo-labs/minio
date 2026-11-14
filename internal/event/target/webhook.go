@@ -33,13 +33,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/minio/minio/internal/event"
-	xhttp "github.com/minio/minio/internal/http"
-	"github.com/minio/minio/internal/logger"
-	"github.com/minio/minio/internal/once"
-	"github.com/minio/minio/internal/store"
 	"github.com/minio/pkg/v3/certs"
 	xnet "github.com/minio/pkg/v3/net"
+	"github.com/relvo-labs/granary/internal/event"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	"github.com/relvo-labs/granary/internal/logger"
+	"github.com/relvo-labs/granary/internal/once"
+	"github.com/relvo-labs/granary/internal/store"
 )
 
 // Webhook constants

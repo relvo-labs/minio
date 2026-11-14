@@ -31,11 +31,11 @@ import (
 	"time"
 
 	"github.com/beevik/ntp"
-	"github.com/minio/minio/internal/amztime"
-	xhttp "github.com/minio/minio/internal/http"
+	"github.com/relvo-labs/granary/internal/amztime"
+	xhttp "github.com/relvo-labs/granary/internal/http"
 
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/v3/env"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 const (

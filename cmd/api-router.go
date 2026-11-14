@@ -22,9 +22,9 @@ import (
 	"net/http"
 
 	consoleapi "github.com/minio/console/api"
-	xhttp "github.com/minio/minio/internal/http"
 	"github.com/minio/mux"
 	"github.com/minio/pkg/v3/wildcard"
+	xhttp "github.com/relvo-labs/granary/internal/http"
 	"github.com/rs/cors"
 )
 

@@ -27,8 +27,9 @@ or production acceptance. `AGENTS.md` governs repository conduct;
 1. Verify the live base, issue and isolated branch; read the plan, governing
    instructions, affected manifests, callers and tests before mutation.
 2. Run Go from the selected toolchain; `go.mod` declares minimum language and
-   preferred toolchain separately. Pin scanner/linter versions. Do not replace
-   the module path or rewrite all upstream URLs as part of a dependency update.
+   preferred toolchain separately. Pin scanner/linter versions. Dependency
+   updates preserve the module path. The owner-approved issue #21 migration
+   uses `github.com/relvo-labs/granary`; preserve upstream attribution URLs.
 3. Run `go mod tidy`, `go mod verify`, `go build ./...`, `go vet ./...`,
    `go test -count=1 ./internal/...` and the affected command-package tests.
    The upstream canonical test tags are `kqueue,dev`, with `CGO_ENABLED=0` and

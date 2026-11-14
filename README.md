@@ -7,9 +7,9 @@ it is used here only to identify the upstream origin.
 
 Granary is an S3-compatible object store. It inherits the upstream MinIO server
 source for storing objects in buckets and accessing them through S3 clients.
-The rename is in progress ([#21](https://github.com/relvo-labs/granary/issues/21)):
-the binary, `MINIO_*` environment variables, Go module path and S3 behavior are
-still the inherited MinIO ones, and existing deployments stay compatible.
+The rename ([#21](https://github.com/relvo-labs/granary/issues/21)) uses the
+`granary` binary and `github.com/relvo-labs/granary` Go module path. Inherited
+`MINIO_*` environment variables and S3 behavior remain compatible.
 The upstream [minio/minio](https://github.com/minio/minio) repository is archived.
 This fork focuses on source maintenance, dependency security, CI and source
 compatibility. It offers no newly certified feature set, performance guarantee
@@ -65,9 +65,10 @@ CGO_ENABLED=0 GOMAXPROCS=2 GOGC=50 GOMEMLIMIT=3GiB GOTOOLCHAIN=local \
 ```
 
 This creates a local executable, not a published fork artifact. The binary is
-named `granary`; the Go module path stays `github.com/minio/minio` until
-the final rename phase ([#21](https://github.com/relvo-labs/granary/issues/21)).
-**`go install github.com/minio/minio@latest` fetches upstream, not this fork.**
+named `granary`; the Go module path is `github.com/relvo-labs/granary`.
+Build the selected checkout as above. Installation from the new module path
+at `@latest` requires this migration to land on `master`; it has not been
+verified here.
 
 ### 2. Start an isolated local server
 

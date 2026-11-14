@@ -22,7 +22,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/minio/minio/internal/auth"
+	"github.com/relvo-labs/granary/internal/auth"
 )
 
 // Key used for Get/SetReqInfo

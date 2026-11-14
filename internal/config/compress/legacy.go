@@ -20,7 +20,7 @@ package compress
 import (
 	"strings"
 
-	"github.com/minio/minio/internal/config"
+	"github.com/relvo-labs/granary/internal/config"
 )
 
 // Legacy envs.

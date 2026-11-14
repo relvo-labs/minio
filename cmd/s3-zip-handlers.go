@@ -28,12 +28,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/minio/minio/internal/auth"
-	"github.com/minio/minio/internal/crypto"
-	xhttp "github.com/minio/minio/internal/http"
-	xioutil "github.com/minio/minio/internal/ioutil"
 	"github.com/minio/pkg/v3/policy"
 	"github.com/minio/zipindex"
+	"github.com/relvo-labs/granary/internal/auth"
+	"github.com/relvo-labs/granary/internal/crypto"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	xioutil "github.com/relvo-labs/granary/internal/ioutil"
 )
 
 const (

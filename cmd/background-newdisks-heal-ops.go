@@ -33,8 +33,8 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/minio/madmin-go/v3"
 	"github.com/minio/minio-go/v7/pkg/set"
-	"github.com/minio/minio/internal/config"
 	"github.com/minio/pkg/v3/env"
+	"github.com/relvo-labs/granary/internal/config"
 )
 
 const (

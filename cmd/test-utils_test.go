@@ -60,13 +60,13 @@ import (
 
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 	"github.com/minio/minio-go/v7/pkg/signer"
-	"github.com/minio/minio/internal/auth"
-	"github.com/minio/minio/internal/config"
-	"github.com/minio/minio/internal/crypto"
-	"github.com/minio/minio/internal/hash"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/mux"
 	"github.com/minio/pkg/v3/policy"
+	"github.com/relvo-labs/granary/internal/auth"
+	"github.com/relvo-labs/granary/internal/config"
+	"github.com/relvo-labs/granary/internal/crypto"
+	"github.com/relvo-labs/granary/internal/hash"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 // TestMain to set up global env.

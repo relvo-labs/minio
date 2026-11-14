@@ -134,6 +134,10 @@ The heavy Makefile targets (`verify*`, `test-iam`, `test-replication`, etc.)
 build through `install-race`. It copies `./granary` to `$(GOPATH)/bin/granary`, so
 run them only on a disposable runner or with a scratch `GOPATH`.
 
+The root module and linker symbol prefix are `github.com/relvo-labs/granary`.
+Independent modules under `docs/debugging` retain their inherited module paths
+and Go pins because they do not import the root module (#27).
+
 `ci-build` produces `./granary`; check `./granary --version` and
 `./granary --help`. The root Dockerfile compiles this checkout with Go 1.27.4.
 `ci-helm-lint` uses `helm/granary`; its server image tag `unpublished` is a

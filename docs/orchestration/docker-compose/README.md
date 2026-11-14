@@ -21,7 +21,7 @@ cd docs/orchestration/docker-compose
 ```
 
 For a binary installation, use the [source quickstart](../../../README.md#build-and-try-locally),
-which builds `granary`. Installing `github.com/minio/minio@latest` fetches upstream.
+which builds `granary` from the `github.com/relvo-labs/granary` module.
 Self-update is disabled; replace the image manually.
 
 ### GNU/Linux and macOS

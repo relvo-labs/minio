@@ -26,9 +26,9 @@ import (
 	"sync"
 
 	"github.com/dustin/go-humanize"
-	"github.com/minio/minio/internal/config"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/v3/env"
+	"github.com/relvo-labs/granary/internal/config"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 // Standard constants for all storage class

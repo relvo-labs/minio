@@ -32,7 +32,7 @@ import (
 	"testing"
 
 	"github.com/dustin/go-humanize"
-	"github.com/minio/minio/internal/config/storageclass"
+	"github.com/relvo-labs/granary/internal/config/storageclass"
 )
 
 func TestRepeatPutObjectPart(t *testing.T) {

@@ -33,14 +33,14 @@ import (
 
 	"github.com/minio/madmin-go/v3"
 	"github.com/minio/minio-go/v7/pkg/set"
-	"github.com/minio/minio/internal/arn"
-	"github.com/minio/minio/internal/auth"
-	"github.com/minio/minio/internal/config"
-	"github.com/minio/minio/internal/config/identity/openid/provider"
-	"github.com/minio/minio/internal/hash/sha256"
 	"github.com/minio/pkg/v3/env"
 	xnet "github.com/minio/pkg/v3/net"
 	"github.com/minio/pkg/v3/policy"
+	"github.com/relvo-labs/granary/internal/arn"
+	"github.com/relvo-labs/granary/internal/auth"
+	"github.com/relvo-labs/granary/internal/config"
+	"github.com/relvo-labs/granary/internal/config/identity/openid/provider"
+	"github.com/relvo-labs/granary/internal/hash/sha256"
 )
 
 // OpenID keys and envs.

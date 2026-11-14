@@ -25,9 +25,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/minio/minio/internal/logger"
-	"github.com/minio/minio/internal/store"
 	"github.com/minio/pkg/v3/workers"
+	"github.com/relvo-labs/granary/internal/logger"
+	"github.com/relvo-labs/granary/internal/store"
 )
 
 const (

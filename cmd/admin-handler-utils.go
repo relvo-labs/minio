@@ -25,9 +25,9 @@ import (
 
 	"github.com/minio/kms-go/kes"
 	"github.com/minio/madmin-go/v3"
-	"github.com/minio/minio/internal/auth"
-	"github.com/minio/minio/internal/config"
 	"github.com/minio/pkg/v3/policy"
+	"github.com/relvo-labs/granary/internal/auth"
+	"github.com/relvo-labs/granary/internal/config"
 )
 
 // validateAdminReq will validate request against and return whether it is allowed.

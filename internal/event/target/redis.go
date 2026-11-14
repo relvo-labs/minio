@@ -29,11 +29,11 @@ import (
 	"time"
 
 	"github.com/gomodule/redigo/redis"
-	"github.com/minio/minio/internal/event"
-	"github.com/minio/minio/internal/logger"
-	"github.com/minio/minio/internal/once"
-	"github.com/minio/minio/internal/store"
 	xnet "github.com/minio/pkg/v3/net"
+	"github.com/relvo-labs/granary/internal/event"
+	"github.com/relvo-labs/granary/internal/logger"
+	"github.com/relvo-labs/granary/internal/once"
+	"github.com/relvo-labs/granary/internal/store"
 )
 
 // Redis constants

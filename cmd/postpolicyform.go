@@ -31,8 +31,8 @@ import (
 
 	"github.com/minio/minio-go/v7/pkg/encrypt"
 	"github.com/minio/minio-go/v7/pkg/set"
-	xhttp "github.com/minio/minio/internal/http"
-	"github.com/minio/minio/internal/s3select/jstream"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	"github.com/relvo-labs/granary/internal/s3select/jstream"
 )
 
 // startWithConds - map which indicates if a given condition supports starts-with policy operator

@@ -31,11 +31,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/minio/minio/internal/arn"
-	"github.com/minio/minio/internal/config"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/v3/env"
 	xnet "github.com/minio/pkg/v3/net"
+	"github.com/relvo-labs/granary/internal/arn"
+	"github.com/relvo-labs/granary/internal/config"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 func authNLogIf(ctx context.Context, err error) {

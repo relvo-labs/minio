@@ -33,15 +33,15 @@ import (
 
 	"github.com/klauspost/readahead"
 	"github.com/minio/minio-go/v7/pkg/set"
-	"github.com/minio/minio/internal/config/storageclass"
-	"github.com/minio/minio/internal/crypto"
-	"github.com/minio/minio/internal/hash"
-	xhttp "github.com/minio/minio/internal/http"
-	xioutil "github.com/minio/minio/internal/ioutil"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/v3/mimedb"
 	"github.com/minio/pkg/v3/sync/errgroup"
 	"github.com/minio/sio"
+	"github.com/relvo-labs/granary/internal/config/storageclass"
+	"github.com/relvo-labs/granary/internal/crypto"
+	"github.com/relvo-labs/granary/internal/hash"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	xioutil "github.com/relvo-labs/granary/internal/ioutil"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 func (er erasureObjects) getUploadIDDir(bucket, object, uploadID string) string {

@@ -23,12 +23,12 @@ import (
 	"math"
 	"net/http"
 
-	"github.com/minio/minio/internal/auth"
-	objectlock "github.com/minio/minio/internal/bucket/object/lock"
-	"github.com/minio/minio/internal/bucket/replication"
-	xhttp "github.com/minio/minio/internal/http"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/v3/policy"
+	"github.com/relvo-labs/granary/internal/auth"
+	objectlock "github.com/relvo-labs/granary/internal/bucket/object/lock"
+	"github.com/relvo-labs/granary/internal/bucket/replication"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 // BucketObjectLockSys - map of bucket and retention configuration.

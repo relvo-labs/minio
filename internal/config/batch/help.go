@@ -17,7 +17,7 @@
 
 package batch
 
-import "github.com/minio/minio/internal/config"
+import "github.com/relvo-labs/granary/internal/config"
 
 // Help template for batch feature.
 var (

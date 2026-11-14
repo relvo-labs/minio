@@ -28,9 +28,9 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/minio/minio-go/v7/pkg/set"
-	"github.com/minio/minio/internal/config"
-	"github.com/minio/minio/internal/kms"
 	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/relvo-labs/granary/internal/config"
+	"github.com/relvo-labs/granary/internal/kms"
 	"go.etcd.io/etcd/api/v3/mvccpb"
 	etcd "go.etcd.io/etcd/client/v3"
 )

@@ -27,9 +27,9 @@ import (
 	"io"
 	"path"
 
-	"github.com/minio/minio/internal/hash/sha256"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/sio"
+	"github.com/relvo-labs/granary/internal/hash/sha256"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 // ObjectKey is a 256 bit secret key used to encrypt the object.

@@ -1,4 +1,4 @@
-module github.com/minio/minio
+module github.com/relvo-labs/granary
 
 go 1.26.0
 

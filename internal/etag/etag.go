@@ -117,9 +117,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/minio/minio/internal/hash/sha256"
-	xhttp "github.com/minio/minio/internal/http"
 	"github.com/minio/sio"
+	"github.com/relvo-labs/granary/internal/hash/sha256"
+	xhttp "github.com/relvo-labs/granary/internal/http"
 )
 
 // ETag is a single S3 ETag.

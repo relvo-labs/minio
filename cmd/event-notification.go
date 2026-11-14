@@ -25,11 +25,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/minio/minio/internal/crypto"
-	"github.com/minio/minio/internal/event"
-	xhttp "github.com/minio/minio/internal/http"
-	"github.com/minio/minio/internal/pubsub"
 	"github.com/minio/pkg/v3/policy"
+	"github.com/relvo-labs/granary/internal/crypto"
+	"github.com/relvo-labs/granary/internal/event"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	"github.com/relvo-labs/granary/internal/pubsub"
 )
 
 // EventNotifier - notifies external systems about events in MinIO.

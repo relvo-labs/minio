@@ -28,16 +28,16 @@ import (
 
 	"github.com/dustin/go-humanize"
 	"github.com/minio/madmin-go/v3"
-	"github.com/minio/minio/internal/bucket/lifecycle"
-	objectlock "github.com/minio/minio/internal/bucket/object/lock"
-	"github.com/minio/minio/internal/bucket/replication"
-	"github.com/minio/minio/internal/bucket/versioning"
-	"github.com/minio/minio/internal/color"
-	"github.com/minio/minio/internal/config/storageclass"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/v3/console"
 	"github.com/minio/pkg/v3/wildcard"
 	"github.com/minio/pkg/v3/workers"
+	"github.com/relvo-labs/granary/internal/bucket/lifecycle"
+	objectlock "github.com/relvo-labs/granary/internal/bucket/object/lock"
+	"github.com/relvo-labs/granary/internal/bucket/replication"
+	"github.com/relvo-labs/granary/internal/bucket/versioning"
+	"github.com/relvo-labs/granary/internal/color"
+	"github.com/relvo-labs/granary/internal/config/storageclass"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 const (

@@ -42,15 +42,15 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	"github.com/klauspost/filepathx"
 	"github.com/minio/madmin-go/v3"
-	"github.com/minio/minio/internal/bucket/lifecycle"
-	"github.com/minio/minio/internal/bucket/replication"
-	"github.com/minio/minio/internal/cachevalue"
-	"github.com/minio/minio/internal/config/storageclass"
+	"github.com/relvo-labs/granary/internal/bucket/lifecycle"
+	"github.com/relvo-labs/granary/internal/bucket/replication"
+	"github.com/relvo-labs/granary/internal/cachevalue"
+	"github.com/relvo-labs/granary/internal/config/storageclass"
 
-	"github.com/minio/minio/internal/disk"
-	xioutil "github.com/minio/minio/internal/ioutil"
-	"github.com/minio/minio/internal/logger"
 	"github.com/pkg/xattr"
+	"github.com/relvo-labs/granary/internal/disk"
+	xioutil "github.com/relvo-labs/granary/internal/ioutil"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 const (

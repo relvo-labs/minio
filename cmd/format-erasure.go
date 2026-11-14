@@ -27,12 +27,12 @@ import (
 	"sync"
 
 	"github.com/dustin/go-humanize"
-	"github.com/minio/minio/internal/color"
-	"github.com/minio/minio/internal/config"
-	"github.com/minio/minio/internal/config/storageclass"
-	xioutil "github.com/minio/minio/internal/ioutil"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/v3/sync/errgroup"
+	"github.com/relvo-labs/granary/internal/color"
+	"github.com/relvo-labs/granary/internal/config"
+	"github.com/relvo-labs/granary/internal/config/storageclass"
+	xioutil "github.com/relvo-labs/granary/internal/ioutil"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 const (

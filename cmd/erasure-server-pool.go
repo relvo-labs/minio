@@ -38,15 +38,15 @@ import (
 	"github.com/minio/minio-go/v7/pkg/s3utils"
 	"github.com/minio/minio-go/v7/pkg/set"
 	"github.com/minio/minio-go/v7/pkg/tags"
-	"github.com/minio/minio/internal/bpool"
-	"github.com/minio/minio/internal/cachevalue"
-	"github.com/minio/minio/internal/config/storageclass"
-	xioutil "github.com/minio/minio/internal/ioutil"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/v3/sync/errgroup"
 	"github.com/minio/pkg/v3/wildcard"
 	"github.com/minio/pkg/v3/workers"
 	"github.com/puzpuzpuz/xsync/v3"
+	"github.com/relvo-labs/granary/internal/bpool"
+	"github.com/relvo-labs/granary/internal/cachevalue"
+	"github.com/relvo-labs/granary/internal/config/storageclass"
+	xioutil "github.com/relvo-labs/granary/internal/ioutil"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 type erasureServerPools struct {

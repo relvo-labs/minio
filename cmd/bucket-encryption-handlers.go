@@ -27,10 +27,10 @@ import (
 
 	"github.com/minio/kms-go/kes"
 	"github.com/minio/madmin-go/v3"
-	"github.com/minio/minio/internal/kms"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/mux"
 	"github.com/minio/pkg/v3/policy"
+	"github.com/relvo-labs/granary/internal/kms"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 const (

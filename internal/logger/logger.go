@@ -35,8 +35,8 @@ import (
 	"github.com/minio/highwayhash"
 	"github.com/minio/madmin-go/v3"
 	"github.com/minio/madmin-go/v3/logger/log"
-	"github.com/minio/minio/internal/color"
-	xhttp "github.com/minio/minio/internal/http"
+	"github.com/relvo-labs/granary/internal/color"
+	xhttp "github.com/relvo-labs/granary/internal/http"
 )
 
 // HighwayHash key for logging in anonymous mode
@@ -145,7 +145,7 @@ func uniqueEntries(paths []string) []string {
 }
 
 // Init sets the trimStrings to possible GOPATHs
-// and GOROOT directories. Also append github.com/minio/minio
+// and GOROOT directories. Also append github.com/relvo-labs/granary
 // This is done to clean up the filename, when stack trace is
 // displayed when an error happens.
 func Init(goPath string, goRoot string) {
@@ -189,10 +189,10 @@ func Init(goPath string, goRoot string) {
 	// Remove duplicate entries.
 	trimStrings = uniqueEntries(trimStrings)
 
-	// Add "github.com/minio/minio" as the last to cover
-	// paths like "{GOROOT}/src/github.com/minio/minio"
-	// and "{GOPATH}/src/github.com/minio/minio"
-	trimStrings = append(trimStrings, filepath.Join("github.com", "minio", "minio")+string(filepath.Separator))
+	// Add "github.com/relvo-labs/granary" as the last to cover
+	// paths like "{GOROOT}/src/github.com/relvo-labs/granary"
+	// and "{GOPATH}/src/github.com/relvo-labs/granary"
+	trimStrings = append(trimStrings, filepath.Join("github.com", "relvo-labs", "granary")+string(filepath.Separator))
 }
 
 func trimTrace(f string) string {

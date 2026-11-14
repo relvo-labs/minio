@@ -19,6 +19,8 @@ package cmd
 
 import (
 	"fmt"
+	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -45,5 +47,18 @@ func TestS3EncodeName(t *testing.T) {
 				t.Errorf("Expected `%s`, got `%s`", testCase.expectedOutput, outputText)
 			}
 		})
+	}
+}
+
+// Handler names are reflected at runtime; the module path must not leak into
+// audit names or the operation names consumed by mc admin trace.
+func TestReflectedHandlerNames(t *testing.T) {
+	handler := objectAPIHandlers{}.GetObjectHandler
+	if got := getHandlerName(handler, "objectAPIHandlers"); got != "GetObject" {
+		t.Errorf("handler name = %q, want GetObject", got)
+	}
+	name := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+	if got := getOpName(name); got != "s3.GetObject" {
+		t.Errorf("trace operation = %q, want s3.GetObject", got)
 	}
 }

@@ -27,17 +27,17 @@ import (
 	"strings"
 
 	"github.com/minio/madmin-go/v3"
-	"github.com/minio/minio/internal/config"
-	"github.com/minio/minio/internal/config/etcd"
-	xldap "github.com/minio/minio/internal/config/identity/ldap"
-	"github.com/minio/minio/internal/config/identity/openid"
-	idplugin "github.com/minio/minio/internal/config/identity/plugin"
-	polplugin "github.com/minio/minio/internal/config/policy/plugin"
-	"github.com/minio/minio/internal/config/storageclass"
-	"github.com/minio/minio/internal/config/subnet"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/mux"
 	"github.com/minio/pkg/v3/policy"
+	"github.com/relvo-labs/granary/internal/config"
+	"github.com/relvo-labs/granary/internal/config/etcd"
+	xldap "github.com/relvo-labs/granary/internal/config/identity/ldap"
+	"github.com/relvo-labs/granary/internal/config/identity/openid"
+	idplugin "github.com/relvo-labs/granary/internal/config/identity/plugin"
+	polplugin "github.com/relvo-labs/granary/internal/config/policy/plugin"
+	"github.com/relvo-labs/granary/internal/config/storageclass"
+	"github.com/relvo-labs/granary/internal/config/subnet"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 // DelConfigKVHandler - DELETE /minio/admin/v3/del-config-kv

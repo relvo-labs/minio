@@ -25,9 +25,9 @@ import (
 	"io"
 	"sync"
 
-	xhttp "github.com/minio/minio/internal/http"
-	"github.com/minio/minio/internal/ioutil"
-	"github.com/minio/minio/internal/ringbuffer"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	"github.com/relvo-labs/granary/internal/ioutil"
+	"github.com/relvo-labs/granary/internal/ringbuffer"
 )
 
 // Calculates bitrot in chunks and writes the hash into the stream.

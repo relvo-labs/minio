@@ -25,13 +25,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio/internal/amztime"
-	"github.com/minio/minio/internal/bucket/lifecycle"
-	"github.com/minio/minio/internal/bucket/replication"
-	"github.com/minio/minio/internal/crypto"
-	"github.com/minio/minio/internal/hash/sha256"
-	xhttp "github.com/minio/minio/internal/http"
 	"github.com/minio/pkg/v3/sync/errgroup"
+	"github.com/relvo-labs/granary/internal/amztime"
+	"github.com/relvo-labs/granary/internal/bucket/lifecycle"
+	"github.com/relvo-labs/granary/internal/bucket/replication"
+	"github.com/relvo-labs/granary/internal/crypto"
+	"github.com/relvo-labs/granary/internal/hash/sha256"
+	xhttp "github.com/relvo-labs/granary/internal/http"
 )
 
 // Object was stored with additional erasure codes due to degraded system at upload time

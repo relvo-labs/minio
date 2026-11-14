@@ -31,7 +31,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/minio/minio/internal/logger/target/testlogger"
+	"github.com/relvo-labs/granary/internal/logger/target/testlogger"
 )
 
 func TestSingleRoundtrip(t *testing.T) {

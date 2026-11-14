@@ -41,7 +41,7 @@ The server binds only to loopback; the browser console is disabled for this test
 
 Prerequisites: Linux, Git, a Go toolchain, Python 3 (port check and random
 credentials), and curl. [go.mod](go.mod) declares minimum language **Go 1.26.0**
-and preferred toolchain **Go 1.27.3**. Use Go 1.27.3 on `PATH` for this example.
+and preferred toolchain **Go 1.27.4**. Use Go 1.27.4 on `PATH` for this example.
 The build uses two Go processors and a 3 GiB Go memory target; these are runtime
 tuning values, not a hard memory cap or deployment sizing guidance.
 

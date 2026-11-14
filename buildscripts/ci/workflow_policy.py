@@ -50,7 +50,7 @@ import sys
 POLICY_VERSION = "2"
 PYYAML_REQUIRED_VERSION = "6.0.3"
 # Selected tested Go toolchain; go.mod's `toolchain` directive must equal it.
-EXPECTED_GO_TOOLCHAIN = "go1.27.3"
+EXPECTED_GO_TOOLCHAIN = "go1.27.4"
 
 PORTABLE = "portable"
 PR_METADATA = "pr-metadata"

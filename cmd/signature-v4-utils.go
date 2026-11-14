@@ -206,6 +206,29 @@ func extractSignedHeaders(signedHeaders []string, r *http.Request) (http.Header,
 	if !slices.Contains(signedHeaders, "host") {
 		return nil, ErrUnsignedHeaders
 	}
+	// S3 requires every received x-amz-* header to be signed, except the
+	// content hash, which is already bound through the canonical payload hash.
+	// Check names, including empty/multiple values, rather than just walking
+	// the client-declared list: an unsigned copy-source can turn PUT into COPY.
+	// Query authentication parameters are signed in the canonical query string
+	// and are deliberately not treated as received headers here.
+	for header, values := range reqHeaders {
+		header = strings.ToLower(header)
+		if !strings.HasPrefix(header, "x-amz-") || header == "x-amz-content-sha256" {
+			continue
+		}
+		// Repeated verification may see our own signature-age scratch header.
+		// Exempt only the value generated after successful verification, never
+		// an unsigned value supplied by the client.
+		if header == "x-amz-signature-age" && len(values) == 1 {
+			if age, ok := r.Context().Value(signatureAgeContextKey{}).(string); ok && values[0] == age {
+				continue
+			}
+		}
+		if !slices.Contains(signedHeaders, header) {
+			return nil, ErrUnsignedHeaders
+		}
+	}
 	extractedSignedHeaders := make(http.Header)
 	for _, header := range signedHeaders {
 		// `host` will not be found in the headers, can be found in r.Host.

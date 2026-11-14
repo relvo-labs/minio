@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Retain the regression logic below until a qualified historical baseline exists.
+# Do not substitute current source: that would no longer test an upgrade.
+echo "DISABLED (#30): LDAP IAM migration requires the unavailable upstream RELEASE.2024-03-26T22-10-45Z server baseline." >&2
+exit 1
+
 # This script is used to test the migration of IAM content from old minio
 # instance to new minio instance.
 #

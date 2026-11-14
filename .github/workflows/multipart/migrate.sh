@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Retain the regression logic below until a qualified historical baseline exists.
+# Do not substitute current source: that would no longer test an upgrade.
+echo "DISABLED (#30): multipart migration requires the unavailable upstream RELEASE.2023-08-29T23-07-35Z server image." >&2
+exit 1
+
 set -x
 
 ## change working directory

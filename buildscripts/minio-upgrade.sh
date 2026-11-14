@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# Retain the regression logic below until a qualified historical baseline exists.
+# Do not substitute current source: that would no longer test an upgrade.
+echo "DISABLED (#30): storage upgrade requires the unavailable upstream RELEASE.2019-12-19T22-52-26Z server image." >&2
+exit 1
+
 trap 'cleanup $LINENO' ERR
 
 # shellcheck disable=SC2120

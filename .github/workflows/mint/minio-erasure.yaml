@@ -2,7 +2,8 @@ version: '3.7'
 
 # Settings and configurations that are common for all containers
 x-minio-common: &minio-common
-  image: quay.io/minio/minio:${JOB_NAME}
+  image: granary-ci:${JOB_NAME:?Set JOB_NAME to the locally built checkout tag}
+  pull_policy: never
   command: server --console-address ":9001" edata{1...4}
   expose:
     - "9000"
@@ -13,7 +14,16 @@ x-minio-common: &minio-common
     MINIO_ROOT_PASSWORD: "minio123"
     MINIO_KMS_SECRET_KEY: "my-minio-key:OSMM+vkKUTCvQs9YL/CVMIMt43HFhkUpqJxTmGl6rYw="
   healthcheck:
-    test: ["CMD", "mc", "ready", "local"]
+    # The source-built server has bash, but no bundled mc or curl.
+    test:
+      - CMD
+      - bash
+      - -ec
+      - |
+        exec 3<>/dev/tcp/127.0.0.1/9000
+        printf 'GET /minio/health/cluster HTTP/1.0\r\n\r\n' >&3
+        read -r response <&3
+        [[ "$$response" == *" 200 "* ]]
     interval: 5s
     timeout: 5s
     retries: 5

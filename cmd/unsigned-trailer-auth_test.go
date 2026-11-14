@@ -216,7 +216,7 @@ func testUnsignedTrailerUploadAuth(obj ObjectLayer, instance, bucket string, rou
 						}
 						// Extraction is not transactional: an integrity error at the
 						// end of the archive can leave already extracted entries.
-						if _, err := obj.GetObjectInfo(ctx, bucket, storedObject, ObjectOptions{}); !(operation == "Extract" && mode == "bad-checksum") && !isErrObjectNotFound(err) {
+						if _, err := obj.GetObjectInfo(ctx, bucket, storedObject, ObjectOptions{}); (operation != "Extract" || mode != "bad-checksum") && !isErrObjectNotFound(err) {
 							t.Errorf("rejected upload left an object: %v", err)
 						}
 						return

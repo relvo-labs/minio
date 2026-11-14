@@ -204,6 +204,7 @@ release-image: ## dry-run both release image platforms; publishing requires the 
 docker: checks ## builds granary docker container
 	@echo "Building granary docker image '$(TAG)'"
 	@docker build -q --no-cache \
+		--label org.opencontainers.image.licenses=AGPL-3.0-or-later \
 		--build-arg "COMMIT_ID=$(call LDFLAG_VALUE,CommitID)" \
 		--build-arg "COMMIT_TIME=$(call LDFLAG_VALUE,Version)" \
 		--build-arg "MINIO_RELEASE=$(MINIO_RELEASE)" \

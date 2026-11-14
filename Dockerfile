@@ -45,7 +45,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 LABEL org.opencontainers.image.title="Granary" \
       org.opencontainers.image.description="Unofficial object storage fork derived from MinIO" \
       org.opencontainers.image.source="https://github.com/relvo-labs/granary" \
-      org.opencontainers.image.licenses="AGPL-3.0-only"
+      org.opencontainers.image.licenses="AGPL-3.0-or-later"
 ENV MINIO_ACCESS_KEY_FILE=access_key \
     MINIO_SECRET_KEY_FILE=secret_key \
     MINIO_ROOT_USER_FILE=access_key \

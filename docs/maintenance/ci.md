@@ -97,7 +97,8 @@ These are errors, not warnings:
   that sets up Go must run a target that checks the toolchain.
 - No `secrets.` references, no `@latest`/`@master`/`@main` and no pipe-to-shell
   in run steps.
-- The Make targets of each portable workflow and of `go-race.yml` are exact.
+- The Make targets of each portable workflow, `go-race.yml` and
+  `release-dryrun.yml` are exact.
   Every target exists in the Makefile. Race targets must not run in a portable
   workflow.
 - In the repository, the go.mod toolchain is go1.27.4. The PyYAML pin agrees in

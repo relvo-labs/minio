@@ -20,7 +20,8 @@ successful local checks do not certify production security.
 Report suspected vulnerabilities privately through GitHub private vulnerability
 reporting: open
 [Security → Report a vulnerability](https://github.com/relvo-labs/granary/security/advisories/new)
-in this repository. Only you and the fork maintainers can see the report.
+in this repository. Reports remain private under GitHub's security advisory
+permissions until publication.
 
 Do **not** post undisclosed exploit details, credentials, logs containing
 personal data, or real host/customer details in public issues, pull requests

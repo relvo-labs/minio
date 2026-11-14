@@ -5,7 +5,7 @@ LDFLAGS := $(shell go run buildscripts/gen-ldflags.go)
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
-VERSION ?= $(shell git describe --tags)
+VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
 REPO ?= ghcr.io/relvo-labs/granary
 TAG ?= $(REPO):$(VERSION)
 

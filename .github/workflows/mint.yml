@@ -59,10 +59,14 @@ jobs:
           SHA_SHORT: ${{ steps.vars.outputs.sha_short }}
         run: |
           make build
-          docker build -t "quay.io/minio/minio:${SHA_SHORT}" -f - . <<'EOF'
+          # The source-build context excludes granary; stage just the overlay files.
+          ctx=$(mktemp -d "${RUNNER_TEMP}/mint-ctx.XXXXXX")
+          trap 'rm -rf "$ctx"' EXIT
+          cp granary dockerscripts/docker-entrypoint.sh "$ctx"/
+          docker build -t "quay.io/minio/minio:${SHA_SHORT}" -f - "$ctx" <<'EOF'
           FROM quay.io/minio/minio:RELEASE.2023-08-29T23-07-35Z
           COPY granary /usr/bin/granary
-          COPY dockerscripts/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+          COPY docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
           ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
           CMD ["granary", "server", "/data"]
           EOF

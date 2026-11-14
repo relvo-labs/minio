@@ -1,4 +1,4 @@
-# CI maintenance tests for the unofficial relvo-labs/minio fork; not part of
+# CI maintenance tests for the unofficial relvo-labs/granary fork; not part of
 # or endorsed by upstream MinIO.  Distributed under the repository's license.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 

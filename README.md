@@ -1,11 +1,15 @@
-# MinIO — unofficial maintenance fork
+# Granary — unofficial maintenance fork of MinIO
 
-**UNOFFICIAL, independent fork:** [relvo-labs/minio](https://github.com/relvo-labs/minio)
-is not affiliated with or endorsed by MinIO, Inc. The MinIO name is retained;
-MinIO is a trademark of MinIO, Inc.
+**UNOFFICIAL, independent fork:** Granary ([relvo-labs/granary](https://github.com/relvo-labs/granary))
+is derived from [minio/minio](https://github.com/minio/minio) and is not
+affiliated with or endorsed by MinIO, Inc. MinIO is a trademark of MinIO, Inc.;
+it is used here only to identify the upstream origin.
 
-MinIO is an S3-compatible object store. This fork inherits the upstream server
+Granary is an S3-compatible object store. It inherits the upstream MinIO server
 source for storing objects in buckets and accessing them through S3 clients.
+The rename is in progress ([#21](https://github.com/relvo-labs/granary/issues/21)):
+the binary, `MINIO_*` environment variables, Go module path and S3 behavior are
+still the inherited MinIO ones, and existing deployments stay compatible.
 The upstream [minio/minio](https://github.com/minio/minio) repository is archived.
 This fork focuses on source maintenance, dependency security, CI and source
 compatibility. It offers no newly certified feature set, performance guarantee
@@ -15,16 +19,17 @@ or enterprise support service.
 but hosted evidence and broader qualification are not confirmed here. A local
 source build or smoke test does not qualify production use, distributed storage,
 migrations or recovery. See the [CI runbook](docs/maintenance/ci.md) for gates
-and known boundaries, including the [stringer coverage gap (#13)](https://github.com/relvo-labs/minio/issues/13),
+and known boundaries, including the [stringer coverage gap (#13)](https://github.com/relvo-labs/granary/issues/13),
 manual heavy integrations and pending hosted evidence.
 
-As of **2026-11-09**, this fork has no GitHub releases. Release, binary and image
-publishing and tag policy remain undecided and are not authorized. Build the
-checked-out fork source to evaluate it locally.
+As of **2026-11-14**, this fork has no GitHub releases. Planned releases will use
+`vYYYY.MM.DD` tags and `ghcr.io/relvo-labs/granary` images; none are published
+yet. Upstream `minio/minio` releases and images are not Granary releases. Build
+the checked-out fork source to evaluate it locally.
 
 [Build and try locally](#build-and-try-locally) ·
 [Find your next step](#find-your-next-step) ·
-[Security reporting limits](SECURITY.md) · [Contribute](CONTRIBUTING.md)
+[Security reporting](SECURITY.md) · [Contribute](CONTRIBUTING.md)
 
 ## Build and try locally
 
@@ -43,8 +48,8 @@ tuning values, not a hard memory cap or deployment sizing guidance.
 Start with a clean checkout from this fork:
 
 ```sh
-git clone https://github.com/relvo-labs/minio.git minio-fork
-cd minio-fork
+git clone https://github.com/relvo-labs/granary.git granary
+cd granary
 git rev-parse HEAD
 ```
 
@@ -59,8 +64,9 @@ CGO_ENABLED=0 GOMAXPROCS=2 GOGC=50 GOMEMLIMIT=3GiB GOTOOLCHAIN=local \
   go build -o .bin/minio .
 ```
 
-This creates a local executable, not a published fork artifact. The Go module
-path stays `github.com/minio/minio` for compatibility.
+This creates a local executable, not a published fork artifact. The binary is
+still named `minio` and the Go module path stays `github.com/minio/minio` until
+later rename phases ([#21](https://github.com/relvo-labs/granary/issues/21)).
 **`go install github.com/minio/minio@latest` fetches upstream, not this fork.**
 
 ### 2. Start an isolated local server
@@ -150,8 +156,8 @@ you can remove the disposable checkout separately after finishing evaluation.
 | --- | --- |
 | Evaluate the local server | [Build and try locally](#build-and-try-locally) |
 | Integrate an S3 client | [Upstream minio-go SDK](https://github.com/minio/minio-go); verify against your selected fork revision |
-| Report a reproducible, non-sensitive bug | [Fork Issues](https://github.com/relvo-labs/minio/issues), with commit ID and a synthetic reproduction |
-| Ask about a security contact channel | [Security policy](SECURITY.md) and [issue #4](https://github.com/relvo-labs/minio/issues/4); no exploit details in public |
+| Report a reproducible, non-sensitive bug | [Fork Issues](https://github.com/relvo-labs/granary/issues), with commit ID and a synthetic reproduction |
+| Report a suspected vulnerability | [Private vulnerability report](https://github.com/relvo-labs/granary/security/advisories/new); see the [security policy](SECURITY.md) |
 | Contribute a change | [Contribution guide](CONTRIBUTING.md) and [maintenance plan](docs/maintenance/plan.md) |
 | Reproduce validation | [Canonical CI runbook](docs/maintenance/ci.md), including prerequisites and incomplete gates |
 
@@ -169,7 +175,7 @@ historical context; check applicability to the exact source you build.
 
 ## Attribution and licensing
 
-MinIO originated with MinIO, Inc. Upstream copyright and licensing notices are
+Granary is derived from MinIO, which originated with MinIO, Inc. Upstream copyright and licensing notices are
 retained in [LICENSE](LICENSE), [NOTICE](NOTICE), [CREDITS](CREDITS) and the source
 files. MinIO source is licensed under the GNU AGPLv3; see the preserved license.
 

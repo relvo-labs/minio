@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-# CI maintenance helper for the unofficial relvo-labs/minio fork; not part of
+# CI maintenance helper for the unofficial relvo-labs/granary fork; not part of
 # or endorsed by upstream MinIO.  Distributed under the repository's license.
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-"""Fail-closed GitHub Actions trigger policy validator (relvo-labs/minio #3).
+"""Fail-closed GitHub Actions trigger policy validator (relvo-labs/granary #3).
 
 Two independent layers must both accept every workflow:
 

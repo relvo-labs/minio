@@ -250,7 +250,7 @@ clean: ## cleanup all generated assets
 	@rm -rvf pkger_*.deb
 
 # ---------------------------------------------------------------------------
-# Pinned CI entrypoints for the unofficial relvo-labs/minio fork (issue #3).
+# Pinned CI entrypoints for the unofficial relvo-labs/granary fork (issue #3).
 # The portable workflows call exactly these targets; run them locally the same
 # way (see docs/maintenance/ci.md).  None of them install into $(GOPATH)/bin.
 CI_GO_TOOLCHAIN := $(shell sed -n 's/^toolchain go//p' go.mod)

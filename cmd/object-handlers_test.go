@@ -1752,6 +1752,10 @@ func testAPICopyObjectPartHandlerSanity(obj ObjectLayer, instanceType, bucketNam
 		// "X-Amz-Copy-Source" header contains the information about the source bucket and the object to copied.
 		req.Header.Set("X-Amz-Copy-Source", url.QueryEscape(pathJoin(bucketName, objectName)))
 		req.Header.Set("X-Amz-Copy-Source-Range", fmt.Sprintf("bytes=%d-%d", a, b))
+		// Sign the copy headers, as an S3 client must.
+		if err = signRequestV4(req, credentials.AccessKey, credentials.SecretKey); err != nil {
+			t.Fatal(err)
+		}
 
 		// Since `apiRouter` satisfies `http.Handler` it has a ServeHTTP to execute the logic of the handler.
 		// Call the ServeHTTP to execute the handler, `func (api objectAPIHandlers) CopyObjectHandler` handles the request.
@@ -2104,6 +2108,12 @@ func testAPICopyObjectPartHandler(obj ObjectLayer, instanceType, bucketName stri
 				req.Header.Set("X-Amz-Copy-Source-Range", "") // specifically test for S3 errors in this scenario.
 			} else {
 				req.Header.Set("X-Amz-Copy-Source-Range", testCase.copySourceRange)
+			}
+		}
+		if testCase.accessKey != "" && testCase.secretKey != "" {
+			// Sign after all operation headers have been set.
+			if err = signRequestV4(req, testCase.accessKey, testCase.secretKey); err != nil {
+				t.Fatal(err)
 			}
 		}
 
@@ -2533,6 +2543,13 @@ func testAPICopyObjectHandler(obj ObjectLayer, instanceType, bucketName string, 
 		if testCase.metadataGarbage {
 			req.Header.Set("X-Amz-Metadata-Directive", "Unknown")
 		}
+		if testCase.accessKey != "" && testCase.secretKey != "" {
+			// Sign after all copy and metadata headers have been set.
+			if err = signRequestV4(req, testCase.accessKey, testCase.secretKey); err != nil {
+				t.Fatal(err)
+			}
+		}
+
 		// Since `apiRouter` satisfies `http.Handler` it has a ServeHTTP to execute the logic of the handler.
 		// Call the ServeHTTP to execute the handler, `func (api objectAPIHandlers) CopyObjectHandler` handles the request.
 		apiRouter.ServeHTTP(rec, req)

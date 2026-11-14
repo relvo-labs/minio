@@ -27,6 +27,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"crypto/subtle"
 	"encoding/hex"
 	"net/http"
@@ -51,6 +52,9 @@ const (
 )
 
 type serviceType string
+
+// signatureAgeContextKey identifies the verifier-generated scratch header.
+type signatureAgeContextKey struct{}
 
 const (
 	serviceS3  serviceType = "s3"
@@ -335,7 +339,9 @@ func doesPresignedSignatureMatch(hashedPayload string, r *http.Request, region s
 		return ErrSignatureDoesNotMatch
 	}
 
-	r.Header.Set("x-amz-signature-age", strconv.FormatInt(UTCNow().Sub(pSignValues.Date).Milliseconds(), 10))
+	age := strconv.FormatInt(UTCNow().Sub(pSignValues.Date).Milliseconds(), 10)
+	r.Header.Set("x-amz-signature-age", age)
+	*r = *r.WithContext(context.WithValue(r.Context(), signatureAgeContextKey{}, age))
 
 	return ErrNone
 }

@@ -28,7 +28,7 @@ For a quick installation, docker-compose reference configs are also available on
 ```
 export MINIO_ROOT_USER=minio
 export MINIO_ROOT_PASSWORD=minio123
-minio server /mnt/export
+granary server /mnt/export
 ```
 
 Here are all the available options to configure OpenID connect

@@ -37,7 +37,7 @@ MinIO also honors environment variable for HTTP target logging as shown below, t
 export MINIO_LOGGER_WEBHOOK_ENABLE_target1="on"
 export MINIO_LOGGER_WEBHOOK_AUTH_TOKEN_target1="token"
 export MINIO_LOGGER_WEBHOOK_ENDPOINT_target1=http://localhost:8080/minio/logs
-minio server /mnt/data
+granary server /mnt/data
 ```
 
 ## Audit Targets
@@ -66,7 +66,7 @@ export MINIO_AUDIT_WEBHOOK_AUTH_TOKEN_target1="token"
 export MINIO_AUDIT_WEBHOOK_ENDPOINT_target1=http://localhost:8080/minio/logs
 export MINIO_AUDIT_WEBHOOK_CLIENT_CERT="/tmp/cert.pem"
 export MINIO_AUDIT_WEBHOOK_CLIENT_KEY=="/tmp/key.pem"
-minio server /mnt/data
+granary server /mnt/data
 ```
 
 Setting this environment variable automatically enables audit logging to the HTTP target. The audit logging is in JSON format as described below.
@@ -209,7 +209,7 @@ MINIO_AUDIT_KAFKA_COMMENT          (sentence)  optionally add a comment to this 
 export MINIO_AUDIT_KAFKA_ENABLE_target1="on"
 export MINIO_AUDIT_KAFKA_BROKERS_target1="localhost:29092"
 export MINIO_AUDIT_KAFKA_TOPIC_target1="auditlog"
-minio server /mnt/data
+granary server /mnt/data
 ```
 
 Setting this environment variable automatically enables audit logging to the Kafka target. The audit logging is in JSON format as described below.

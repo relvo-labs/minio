@@ -294,40 +294,9 @@ func initConsoleServer() (*consoleapi.Server, error) {
 	return server, nil
 }
 
-// Check for updates and print a notification message
+// Keep the startup hook without fetching upstream update notifications.
 func checkUpdate(mode string) {
-	updateURL := minioReleaseInfoURL
-	if runtime.GOOS == globalWindowsOSName {
-		updateURL = minioReleaseWindowsInfoURL
-	}
-
-	u, err := url.Parse(updateURL)
-	if err != nil {
-		return
-	}
-
-	if currentReleaseTime.IsZero() {
-		return
-	}
-
-	_, lrTime, err := getLatestReleaseTime(u, 2*time.Second, mode)
-	if err != nil {
-		return
-	}
-
-	var older time.Duration
-	var downloadURL string
-	if lrTime.After(currentReleaseTime) {
-		older = lrTime.Sub(currentReleaseTime)
-		downloadURL = getDownloadURL(releaseTimeToReleaseTag(lrTime))
-	}
-
-	updateMsg := prepareUpdateMessage(downloadURL, older)
-	if updateMsg == "" {
-		return
-	}
-
-	logger.Info(prepareUpdateMessage("Run `mc admin update ALIAS`", lrTime.Sub(currentReleaseTime)))
+	// Granary has no published update channel. Never query upstream for updates.
 }
 
 func newConfigDir(dir string, dirSet bool, getDefaultDir func() string) (*ConfigDir, error) {

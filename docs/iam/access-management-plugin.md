@@ -23,7 +23,7 @@ export MINIO_CI_CD=1
 export MINIO_ROOT_USER=minio
 export MINIO_ROOT_PASSWORD=minio123
 export MINIO_POLICY_PLUGIN_URL=http://localhost:8080/
-minio server /tmp/disk{1...4}
+granary server /tmp/disk{1...4}
 ```
 
 Now, let's test it out with `mc`:

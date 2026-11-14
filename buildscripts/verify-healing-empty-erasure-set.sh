@@ -4,14 +4,14 @@
 set -E
 set -o pipefail
 
-if [ ! -x "$PWD/minio" ]; then
-	echo "minio executable binary not found in current directory"
+if [ ! -x "$PWD/granary" ]; then
+	echo "granary executable binary not found in current directory"
 	exit 1
 fi
 
 WORK_DIR="$PWD/.verify-$RANDOM"
 MINIO_CONFIG_DIR="$WORK_DIR/.minio"
-MINIO=("$PWD/minio" --config-dir "$MINIO_CONFIG_DIR" server)
+MINIO=("$PWD/granary" --config-dir "$MINIO_CONFIG_DIR" server)
 
 function start_minio_3_node() {
 	export MINIO_ROOT_USER=minio
@@ -77,14 +77,14 @@ function start_minio_3_node() {
 		echo "minio-server-3 is not running." && fail
 	fi
 
-	if ! pkill minio; then
+	if ! pkill granary; then
 		fail
 	fi
 
 	sleep 1
-	if pgrep minio; then
+	if pgrep granary; then
 		# forcibly killing, to proceed further properly.
-		if ! pkill -9 minio; then
+		if ! pkill -9 granary; then
 			echo "no minio process running anymore, proceed."
 		fi
 	fi

@@ -4,7 +4,7 @@ if [ -n "$TEST_DEBUG" ]; then
 	set -x
 fi
 
-pkill minio
+pkill granary
 docker rm -f $(docker ps -aq)
 rm -rf /tmp/openid{1..4}
 
@@ -30,7 +30,7 @@ mc -v
 	cd -
 )
 
-(minio server --address :22000 --console-address :10000 http://localhost:22000/tmp/openid{1...4} 2>&1 >/tmp/server.log) &
+(granary server --address :22000 --console-address :10000 http://localhost:22000/tmp/openid{1...4} 2>&1 >/tmp/server.log) &
 ./mc ready myminio
 ./mc mb myminio/test-bucket
 ./mc cp /etc/hosts myminio/test-bucket
@@ -78,5 +78,5 @@ if [[ ${OBJ_NAME} != "hosts" ]]; then
 fi
 
 # Finally kill running processes
-pkill minio
+pkill granary
 docker rm -f $(docker ps -aq)

@@ -86,7 +86,7 @@ http://minio:9000/?Action=AssumeRole&DurationSeconds=3600&Version=2011-06-15&Pol
 ```
 export MINIO_ROOT_USER=minio
 export MINIO_ROOT_PASSWORD=minio123
-minio server ~/test
+granary server ~/test
 ```
 
 Create new users following the multi-user guide [here](https://docs.min.io/community/minio-object-store/administration/identity-access-management.html)

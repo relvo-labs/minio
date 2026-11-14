@@ -6,8 +6,8 @@ GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
 VERSION ?= $(shell git describe --tags)
-REPO ?= quay.io/minio
-TAG ?= $(REPO)/minio:$(VERSION)
+REPO ?= ghcr.io/relvo-labs/granary
+TAG ?= $(REPO):$(VERSION)
 
 # Pinned CI tool versions (single source of truth, also read by
 # buildscripts/ci/install-tools.sh).  Tools install under CI_TOOLS_DIR.
@@ -30,7 +30,7 @@ getdeps: ## fetch necessary dependencies (pinned, checksum-verified golangci-lin
 	@echo "Installing golangci-lint $(GOLANGCI_LINT_VERSION)"
 	@env bash $(PWD)/buildscripts/ci/install-tools.sh $(CI_TOOLS_DIR) golangci-lint
 
-crosscompile: ## cross compile minio
+crosscompile: ## cross compile granary
 	@(env bash $(PWD)/buildscripts/cross-compile.sh)
 
 verifiers: lint check-gen
@@ -51,7 +51,7 @@ lint-fix: getdeps ## runs golangci-lint suite of linters with automatic fixes
 	@$(GOLANGCI) run --build-tags kqueue --timeout=10m --config ./.golangci.yml --fix
 
 check: test
-test: verifiers build ## builds minio, runs linters, tests
+test: verifiers build ## builds granary, runs linters, tests
 	@echo "Running unit tests"
 	@MINIO_API_REQUESTS_MAX=10000 CGO_ENABLED=0 go test -v -tags kqueue,dev ./...
 
@@ -90,7 +90,7 @@ test-upgrade: install-race
 	@echo "Running minio upgrade tests"
 	@(env bash $(PWD)/buildscripts/minio-upgrade.sh)
 
-test-race: verifiers build ## builds minio, runs linters, tests (race)
+test-race: verifiers build ## builds granary, runs linters, tests (race)
 	@echo "Running unit tests under -race"
 	@(env bash $(PWD)/buildscripts/race.sh)
 
@@ -160,7 +160,7 @@ verify: install-race ## verify minio various setups
 	@echo "Verifying build with race"
 	@(env bash $(PWD)/buildscripts/verify-build.sh)
 
-verify-healing: install-race ## verify healing and replacing disks with minio binary
+verify-healing: install-race ## verify healing and replacing disks with granary binary
 	@echo "Verify healing build with race"
 	@(env bash $(PWD)/buildscripts/verify-healing.sh)
 	@(env bash $(PWD)/buildscripts/verify-healing-empty-erasure-set.sh)
@@ -181,59 +181,34 @@ verify-healing-inconsistent-versions: install-race ## verify resolving inconsist
 build-debugging:
 	@(env bash $(PWD)/docs/debugging/build.sh)
 
-build: checks build-debugging ## builds minio to $(PWD)
-	@echo "Building minio binary to './minio'"
-	@CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -tags kqueue -trimpath --ldflags "$(LDFLAGS)" -o $(PWD)/minio 1>/dev/null
+build: checks build-debugging ## builds granary to $(PWD)
+	@echo "Building granary binary to './granary'"
+	@CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH) go build -tags kqueue -trimpath --ldflags "$(LDFLAGS)" -o $(PWD)/granary 1>/dev/null
 
-hotfix-vars:
-	$(eval LDFLAGS := $(shell MINIO_RELEASE="RELEASE" MINIO_HOTFIX="hotfix.$(shell git rev-parse --short HEAD)" go run buildscripts/gen-ldflags.go $(shell git describe --tags --abbrev=0 | \
-    sed 's#RELEASE\.\([0-9]\+\)-\([0-9]\+\)-\([0-9]\+\)T\([0-9]\+\)-\([0-9]\+\)-\([0-9]\+\)Z#\1-\2-\3T\4:\5:\6Z#')))
-	$(eval VERSION := $(shell git describe --tags --abbrev=0).hotfix.$(shell git rev-parse --short HEAD))
+# Upstream signing and publishing infrastructure is unavailable to this fork.
+.PHONY: hotfix-vars hotfix hotfix-push docker-hotfix docker-hotfix-push
+hotfix-vars hotfix hotfix-push docker-hotfix docker-hotfix-push:
+	@echo "Hotfix publishing is disabled in Granary; build from source with make build or make docker." >&2
+	@false
 
-hotfix: hotfix-vars clean install ## builds minio binary with hotfix tags
-	@wget -q -c https://github.com/minio/pkger/releases/download/v2.3.11/pkger_2.3.11_linux_amd64.deb
-	@wget -q -c https://raw.githubusercontent.com/minio/minio-service/v1.1.1/linux-systemd/distributed/minio.service
-	@sudo apt install ./pkger_2.3.11_linux_amd64.deb --yes
-	@mkdir -p minio-release/$(GOOS)-$(GOARCH)/archive
-	@cp -af ./minio minio-release/$(GOOS)-$(GOARCH)/minio
-	@cp -af ./minio minio-release/$(GOOS)-$(GOARCH)/minio.$(VERSION)
-	@minisign -qQSm minio-release/$(GOOS)-$(GOARCH)/minio.$(VERSION) -s "${CRED_DIR}/minisign.key" < "${CRED_DIR}/minisign-passphrase"
-	@sha256sum < minio-release/$(GOOS)-$(GOARCH)/minio.$(VERSION) | sed 's, -,minio.$(VERSION),g' > minio-release/$(GOOS)-$(GOARCH)/minio.$(VERSION).sha256sum
-	@cp -af minio-release/$(GOOS)-$(GOARCH)/minio.$(VERSION)* minio-release/$(GOOS)-$(GOARCH)/archive/
-	@pkger -r $(VERSION) --ignore
-
-hotfix-push: hotfix
-	@scp -q -r minio-release/$(GOOS)-$(GOARCH)/* minio@dl-0.minio.io:~/releases/server/minio/hotfixes/linux-$(GOOS)/
-	@scp -q -r minio-release/$(GOOS)-$(GOARCH)/* minio@dl-0.minio.io:~/releases/server/minio/hotfixes/linux-$(GOOS)/archive
-	@scp -q -r minio-release/$(GOOS)-$(GOARCH)/* minio@dl-1.minio.io:~/releases/server/minio/hotfixes/linux-$(GOOS)/
-	@scp -q -r minio-release/$(GOOS)-$(GOARCH)/* minio@dl-1.minio.io:~/releases/server/minio/hotfixes/linux-$(GOOS)/archive
-	@echo "Published new hotfix binaries at https://dl.min.io/server/minio/hotfixes/linux-$(GOOS)/archive/minio.$(VERSION)"
-
-docker-hotfix-push: docker-hotfix
-	@docker push -q $(TAG) && echo "Published new container $(TAG)"
-
-docker-hotfix: hotfix-push checks ## builds minio docker container with hotfix tags
-	@echo "Building minio docker image '$(TAG)'"
-	@docker build -q --no-cache -t $(TAG) --build-arg RELEASE=$(VERSION) . -f Dockerfile.hotfix
-
-docker: build ## builds minio docker container
-	@echo "Building minio docker image '$(TAG)'"
+docker: checks ## builds granary docker container
+	@echo "Building granary docker image '$(TAG)'"
 	@docker build -q --no-cache -t $(TAG) . -f Dockerfile
 
 test-resiliency: build
 	@echo "Running resiliency tests"
 	@(DOCKER_COMPOSE_FILE=$(PWD)/docs/resiliency/docker-compose.yaml env bash $(PWD)/docs/resiliency/resiliency-tests.sh)
 
-install-race: checks build-debugging ## builds minio to $(PWD)
-	@echo "Building minio binary with -race to './minio'"
-	@GORACE=history_size=7 CGO_ENABLED=1 go build -tags kqueue,dev -race -trimpath --ldflags "$(LDFLAGS)" -o $(PWD)/minio 1>/dev/null
-	@echo "Installing minio binary with -race to '$(GOPATH)/bin/minio'"
-	@mkdir -p $(GOPATH)/bin && cp -af $(PWD)/minio $(GOPATH)/bin/minio
+install-race: checks build-debugging ## builds granary to $(PWD)
+	@echo "Building granary binary with -race to './granary'"
+	@GORACE=history_size=7 CGO_ENABLED=1 go build -tags kqueue,dev -race -trimpath --ldflags "$(LDFLAGS)" -o $(PWD)/granary 1>/dev/null
+	@echo "Installing granary binary with -race to '$(GOPATH)/bin/granary'"
+	@mkdir -p $(GOPATH)/bin && cp -af $(PWD)/granary $(GOPATH)/bin/granary
 
-install: build ## builds minio and installs it to $GOPATH/bin.
-	@echo "Installing minio binary to '$(GOPATH)/bin/minio'"
-	@mkdir -p $(GOPATH)/bin && cp -af $(PWD)/minio $(GOPATH)/bin/minio
-	@echo "Installation successful. To learn more, try \"minio --help\"."
+install: build ## builds granary and installs it to $GOPATH/bin.
+	@echo "Installing granary binary to '$(GOPATH)/bin/granary'"
+	@mkdir -p $(GOPATH)/bin && cp -af $(PWD)/granary $(GOPATH)/bin/granary
+	@echo "Installation successful. To learn more, try \"granary --help\"."
 
 clean: ## cleanup all generated assets
 	@echo "Cleaning up all the generated files"
@@ -241,7 +216,7 @@ clean: ## cleanup all generated assets
 	@find . -name '*~' | xargs rm -fv
 	@find . -name '.#*#' | xargs rm -fv
 	@find . -name '#*#' | xargs rm -fv
-	@rm -rvf minio
+	@rm -rvf granary
 	@rm -rvf build
 	@rm -rvf release
 	@rm -rvf .verify*
@@ -275,7 +250,7 @@ ci-policy: ## workflow trigger/pinning policy and its adversarial tests (PyYAML 
 	@$(CI_PYTHON) buildscripts/ci/workflow_policy.py
 	@$(CI_PYTHON) -m unittest discover -s tests/ci -p 'test_*.py'
 
-ci-build: ci-go-version build ## build ./minio and debugging helpers with the pinned toolchain
+ci-build: ci-go-version build ## build ./granary and debugging helpers with the pinned toolchain
 
 ci-check-gen: ci-go-version ## generated code and go.sum must be committed (may rewrite them)
 	@mkdir -p $(CI_GEN_BIN)
@@ -309,6 +284,6 @@ ci-typos: ## spelling, using .typos.toml
 
 ci-helm-lint: ## lint the Helm chart
 	@$(CI_INSTALL) helm
-	@cd helm/minio && $(CI_TOOLS_DIR)/helm/$(HELM_VERSION)/helm lint .
+	@cd helm/granary && $(CI_TOOLS_DIR)/helm/$(HELM_VERSION)/helm lint .
 
 .PHONY: ci-tools ci-go-version ci-policy ci-build ci-check-gen ci-lint ci-test ci-test-race ci-vulncheck ci-crosscompile ci-shfmt ci-typos ci-helm-lint

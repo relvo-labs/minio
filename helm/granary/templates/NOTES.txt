@@ -1,8 +1,14 @@
+Granary is an unofficial fork derived from MinIO, without MinIO endorsement.
+The Granary image is not yet published. The default tag "unpublished" is a
+placeholder. Build this checkout and override image.repository/image.tag with
+an image available to your cluster before installing.
+Self-update is disabled; install replacement Granary images manually.
+
 {{- if eq .Values.service.type "ClusterIP" "NodePort" }}
-MinIO can be accessed via port {{ .Values.service.port }} on the following DNS name from within your cluster:
+Granary can be accessed via port {{ .Values.service.port }} on the following DNS name from within your cluster:
 {{ template "minio.fullname" . }}.{{ .Release.Namespace }}.{{ .Values.clusterDomain }}
 
-To access MinIO from localhost, run the below commands:
+To access Granary from localhost, run the below commands:
 
   1. export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "release={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
 
@@ -10,7 +16,7 @@ To access MinIO from localhost, run the below commands:
 
 Read more about port forwarding here: http://kubernetes.io/docs/user-guide/kubectl/kubectl_port-forward/
 
-You can now access MinIO server on http://localhost:9000. Follow the below steps to connect to MinIO server with mc client:
+You can now access Granary server on http://localhost:9000. Follow the below steps to connect to Granary server with mc client:
 
   1. Download the MinIO mc client - https://docs.min.io/community/minio-object-store/reference/minio-mc.html#quickstart
 
@@ -20,12 +26,12 @@ You can now access MinIO server on http://localhost:9000. Follow the below steps
 
 {{- end }}
 {{- if eq .Values.service.type "LoadBalancer" }}
-MinIO can be accessed via port {{ .Values.service.port }} on an external IP address. Get the service external IP address by:
+Granary can be accessed via port {{ .Values.service.port }} on an external IP address. Get the service external IP address by:
 kubectl get svc --namespace {{ .Release.Namespace }} -l app={{ template "minio.fullname" . }}
 
 Note that the public IP may take a couple of minutes to be available.
 
-You can now access MinIO server on http://<External-IP>:9000. Follow the below steps to connect to MinIO server with mc client:
+You can now access Granary server on http://<External-IP>:9000. Follow the below steps to connect to Granary server with mc client:
 
   1. Download the MinIO mc client - https://docs.min.io/community/minio-object-store/reference/minio-mc.html#quickstart
 
@@ -39,5 +45,5 @@ Alternately, you can use your browser or the MinIO SDK to access the server - ht
 {{ if and (.Values.networkPolicy.enabled) (not .Values.networkPolicy.allowExternal) }}
 Note: Since NetworkPolicy is enabled, only pods with label
 {{ template "minio.fullname" . }}-client=true"
-will be able to connect to this minio cluster.
+will be able to connect to this Granary cluster.
 {{- end }}

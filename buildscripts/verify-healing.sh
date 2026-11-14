@@ -4,14 +4,14 @@
 set -E
 set -o pipefail
 
-if [ ! -x "$PWD/minio" ]; then
-	echo "minio executable binary not found in current directory"
+if [ ! -x "$PWD/granary" ]; then
+	echo "granary executable binary not found in current directory"
 	exit 1
 fi
 
 WORK_DIR="$PWD/.verify-$RANDOM"
 MINIO_CONFIG_DIR="$WORK_DIR/.minio"
-MINIO=("$PWD/minio" --config-dir "$MINIO_CONFIG_DIR" server)
+MINIO=("$PWD/granary" --config-dir "$MINIO_CONFIG_DIR" server)
 GOPATH=/tmp/gopath
 
 function start_minio_3_node() {
@@ -53,25 +53,25 @@ function start_minio_3_node() {
 	[ ${first_time} -ne 0 ] && sleep 120
 
 	if ! ps -p $pid1 1>&2 >/dev/null; then
-		echo "minio server 1 is not running" && fail
+		echo "granary server 1 is not running" && fail
 	fi
 
 	if ! ps -p $pid2 1>&2 >/dev/null; then
-		echo "minio server 2 is not running" && fail
+		echo "granary server 2 is not running" && fail
 	fi
 
 	if ! ps -p $pid3 1>&2 >/dev/null; then
-		echo "minio server 3 is not running" && fail
+		echo "granary server 3 is not running" && fail
 	fi
 
-	if ! pkill minio; then
+	if ! pkill granary; then
 		fail
 	fi
 
 	sleep 1
-	if pgrep minio; then
+	if pgrep granary; then
 		# forcibly killing, to proceed further properly.
-		if ! pkill -9 minio; then
+		if ! pkill -9 granary; then
 			echo "no minio process running anymore, proceed."
 		fi
 	fi
@@ -105,7 +105,7 @@ function fail() {
 		echo "server$i log:"
 		cat "${WORK_DIR}/dist-minio-server$i.log"
 	done
-	pkill -9 minio
+	pkill -9 granary
 	echo "FAILED"
 	purge "$WORK_DIR"
 	exit 1

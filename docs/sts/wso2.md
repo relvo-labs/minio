@@ -84,7 +84,7 @@ MinIO server expects environment variable for OpenID configuration url as `MINIO
 ```
 export MINIO_IDENTITY_OPENID_CONFIG_URL=https://localhost:9443/oauth2/oidcdiscovery/.well-known/openid-configuration
 export MINIO_IDENTITY_OPENID_CLIENT_ID="843351d4-1080-11ea-aa20-271ecba3924a"
-minio server /mnt/data
+granary server /mnt/data
 ```
 
 Assuming that MinIO server is configured to support STS API by following the doc [MinIO STS Quickstart Guide](https://docs.min.io/community/minio-object-store/developers/security-token-service.html), execute the following command to temporary credentials from MinIO server.

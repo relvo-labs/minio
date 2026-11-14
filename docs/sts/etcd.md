@@ -41,7 +41,7 @@ MinIO server expects environment variable for etcd as `MINIO_ETCD_ENDPOINTS`, th
 
 ```
 export MINIO_ETCD_ENDPOINTS=http://localhost:2379
-minio server /data
+granary server /data
 ```
 
 NOTE: If `etcd` is configured with `Client-to-server authentication with HTTPS client certificates` then you need to use additional envs such as `MINIO_ETCD_CLIENT_CERT` pointing to path to `etcd-client.crt` and `MINIO_ETCD_CLIENT_CERT_KEY` path to `etcd-client.key` .

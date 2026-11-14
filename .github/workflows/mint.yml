@@ -52,9 +52,8 @@ jobs:
           CGO_ENABLED=0 go build -C docs/debugging/s3-check-md5 \
             -o "${GITHUB_WORKSPACE}/.github/workflows/multipart/s3-check-md5"
 
-      # The repository Dockerfile packages signed release artifacts, which a
-      # source build does not have. Overlay this checkout's static binary on
-      # the same release image migrate.sh already uses (tag-pinned).
+      # Keep the historical test base; overlay this checkout's Granary binary
+      # and entrypoint. Image tags are local compatibility fixtures, never pushed.
       - name: build-minio
         env:
           SHA_SHORT: ${{ steps.vars.outputs.sha_short }}
@@ -62,7 +61,10 @@ jobs:
           make build
           docker build -t "quay.io/minio/minio:${SHA_SHORT}" -f - . <<'EOF'
           FROM quay.io/minio/minio:RELEASE.2023-08-29T23-07-35Z
-          COPY minio /usr/bin/minio
+          COPY granary /usr/bin/granary
+          COPY dockerscripts/docker-entrypoint.sh /usr/bin/docker-entrypoint.sh
+          ENTRYPOINT ["/usr/bin/docker-entrypoint.sh"]
+          CMD ["granary", "server", "/data"]
           EOF
 
       - name: multipart uploads test

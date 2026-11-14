@@ -9,7 +9,7 @@ export CI=1
 
 make || exit 255
 
-killall -9 minio || true
+killall -9 granary || true
 
 rm -rf /tmp/xl/
 mkdir -p /tmp/xl/1/ /tmp/xl/2/
@@ -26,8 +26,8 @@ for i in $(seq 1 $NODES); do
 done
 
 for i in $(seq 1 $NODES); do
-	./minio server --address "127.0.0.1:$((9000 + i))" ${args1[@]} & # | tee /tmp/minio/node.$i &
-	./minio server --address "127.0.0.1:$((9100 + i))" ${args2[@]} & # | tee /tmp/minio/node.$i &
+	./granary server --address "127.0.0.1:$((9000 + i))" ${args1[@]} & # | tee /tmp/minio/node.$i &
+	./granary server --address "127.0.0.1:$((9100 + i))" ${args2[@]} & # | tee /tmp/minio/node.$i &
 done
 
 sleep 10

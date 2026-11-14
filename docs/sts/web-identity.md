@@ -202,7 +202,7 @@ export MINIO_IDENTITY_OPENID_CONFIG_URL=https://accounts.google.com/.well-known/
 export MINIO_IDENTITY_OPENID_CLIENT_ID="843351d4-1080-11ea-aa20-271ecba3924a"
 # Optional: Allow to specify the requested OpenID scopes (OpenID only requires the `openid` scope)
 #export MINIO_IDENTITY_OPENID_SCOPES="openid,profile,email"
-minio server /mnt/export
+granary server /mnt/export
 ```
 
 or using `mc`

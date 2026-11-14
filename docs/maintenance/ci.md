@@ -131,8 +131,24 @@ python3 -m venv /tmp/ci-venv
 ```
 
 The heavy Makefile targets (`verify*`, `test-iam`, `test-replication`, etc.)
-build through `install-race`. It copies `./minio` to `$(GOPATH)/bin/minio`, so
+build through `install-race`. It copies `./granary` to `$(GOPATH)/bin/granary`, so
 run them only on a disposable runner or with a scratch `GOPATH`.
+
+`ci-build` produces `./granary`; check `./granary --version` and
+`./granary --help`. The root Dockerfile compiles this checkout with Go 1.27.4.
+`ci-helm-lint` uses `helm/granary`; its server image tag `unpublished` is a
+placeholder because the Granary image is not yet published. Provisioning jobs
+retain the separate upstream `mc` client image. Self-update and upstream update
+notifications are disabled; install replacement Granary builds manually.
+
+The single root Dockerfile replaces `Dockerfile.release`,
+`Dockerfile.release.old_cpu`, `Dockerfile.hotfix`, `Dockerfile.cicd` and
+`Dockerfile.scratch`: upstream downloads, inherited server images and prebuilt
+binary recipes no longer describe a source build. `docker-buildx.sh` was an
+upstream signing/publishing script and was removed. The upstream chart archive
+`helm-releases/`, `index.yaml`, `helm-reindex.sh`, `CNAME` and `_config.yml` were
+removed because they only supported publishing MinIO charts. Hotfix publishing
+Make targets fail explicitly. No publication is part of these local checks.
 
 ## Known failures and pending gates
 
@@ -169,7 +185,7 @@ run them only on a disposable runner or with a scratch `GOPATH`.
   - a `docker-compose` shim
   - `/etc/hosts` entries for the nginx endpoints
   - a locally built `s3-check-md5`
-  - an image that overlays this checkout's binary on the tag-pinned
+  - an image that overlays this checkout's `granary` binary and entrypoint on the tag-pinned
     `RELEASE.2023-08-29T23-07-35Z` image
 
   Cross-compilation, hosted runs and an independent review are also pending.

@@ -28,7 +28,7 @@ On MinIO admin credentials or root credentials are only allowed to be changed us
 ```sh
 export MINIO_ROOT_USER=minio
 export MINIO_ROOT_PASSWORD=minio13
-minio server /data
+granary server /data
 ```
 
 #### Site
@@ -60,7 +60,7 @@ Example:
 ```sh
 export MINIO_SITE_REGION="us-west-0"
 export MINIO_SITE_NAME="sfo-rack-1"
-minio server /data
+granary server /data
 ```
 
 ### Storage Class
@@ -313,7 +313,7 @@ Example:
 
 ```sh
 export MINIO_BROWSER=off
-minio server /data
+granary server /data
 ```
 
 ### Domain
@@ -324,14 +324,14 @@ Example:
 
 ```sh
 export MINIO_DOMAIN=mydomain.com
-minio server /data
+granary server /data
 ```
 
 For advanced use cases `MINIO_DOMAIN` environment variable supports multiple-domains with comma separated values.
 
 ```sh
 export MINIO_DOMAIN=sub1.mydomain.com,sub2.mydomain.com
-minio server /data
+granary server /data
 ```
 
 ## Explore Further

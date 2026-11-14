@@ -28,6 +28,7 @@ import (
 	"net/url"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -531,5 +532,63 @@ func TestTopLockEntries(t *testing.T) {
 		if idx, ok := check(tc.expected, got); !ok {
 			t.Fatalf("%d: mismatch at %d \n expected %#v but got %#v", i, idx, tc.expected[idx], got[idx])
 		}
+	}
+}
+
+// The compatibility endpoints remain authenticated, but neither API version
+// may download or replace a binary, including custom URLs and dry runs.
+func TestServerUpdateDisabled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	bed, err := prepareAdminErasureTestBed(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer bed.TearDown()
+
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+	}))
+	defer server.Close()
+
+	for _, updateType := range []string{"", "2"} {
+		for _, updateURL := range []string{"", server.URL, ":invalid"} {
+			for _, dryRun := range []string{"false", "true"} {
+				query := url.Values{"updateURL": {updateURL}, "dry-run": {dryRun}}
+				if updateType != "" {
+					query.Set("type", updateType)
+				}
+				resource := adminPathPrefix + adminAPIVersionPrefix + "/update?" + query.Encode()
+				req, err := newTestRequest(http.MethodPost, resource, 0, nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if err := signRequestV4(req, globalActiveCred.AccessKey, globalActiveCred.SecretKey); err != nil {
+					t.Fatal(err)
+				}
+				rec := httptest.NewRecorder()
+				bed.router.ServeHTTP(rec, req)
+				var response struct {
+					Code    string
+					Message string
+				}
+				if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+					t.Fatal(err)
+				}
+				if rec.Code != http.StatusMethodNotAllowed || response.Code != errSelfUpdateDisabled.Code || response.Message != errSelfUpdateDisabled.Message {
+					t.Fatalf("%s: status %d, body %s", resource, rec.Code, rec.Body)
+				}
+			}
+		}
+		req := httptest.NewRequest(http.MethodPost, adminPathPrefix+adminAPIVersionPrefix+"/update?updateURL=&type="+updateType, nil)
+		rec := httptest.NewRecorder()
+		bed.router.ServeHTTP(rec, req)
+		if rec.Code == http.StatusMethodNotAllowed || rec.Code == http.StatusOK {
+			t.Fatalf("unsigned update request bypassed authentication: %d", rec.Code)
+		}
+	}
+	if requests.Load() != 0 {
+		t.Fatal("admin update contacted the download server")
 	}
 }

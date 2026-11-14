@@ -4,14 +4,14 @@ set -E
 set -o pipefail
 set -x
 
-if [ ! -x "$PWD/minio" ]; then
-	echo "minio executable binary not found in current directory"
+if [ ! -x "$PWD/granary" ]; then
+	echo "granary executable binary not found in current directory"
 	exit 1
 fi
 
 WORK_DIR="$(mktemp -d)"
 MINIO_CONFIG_DIR="$WORK_DIR/.minio"
-MINIO=("$PWD/minio" --config-dir "$MINIO_CONFIG_DIR" server)
+MINIO=("$PWD/granary" --config-dir "$MINIO_CONFIG_DIR" server)
 
 function start_minio() {
 	start_port=$1
@@ -82,7 +82,7 @@ function main() {
 }
 
 function cleanup() {
-	pkill minio
+	pkill granary
 	sudo umount ${WORK_DIR}/mnt/disk{1..3}/
 	sudo rm /dev/minio-loopdisk*
 	rm -rf "$WORK_DIR"

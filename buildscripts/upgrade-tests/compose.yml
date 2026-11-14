@@ -1,6 +1,7 @@
 # Settings and configurations that are common for all containers
 x-minio-common: &minio-common
-  image: minio/minio:${MINIO_VERSION}
+  # Historical upstream baseline by default; the test overrides this for Granary.
+  image: ${MINIO_IMAGE_REPOSITORY:-minio/minio}:${MINIO_VERSION}
   command: server http://minio{1...4}/data{1...3}
   env_file:
     - ./minio.env

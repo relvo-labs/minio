@@ -1,4 +1,4 @@
-# Deploy MinIO on Chrooted Environment [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Docker Pulls](https://img.shields.io/docker/pulls/minio/minio.svg?maxAge=604800)](https://hub.docker.com/r/minio/minio/)
+# Deploy Granary in a chroot
 
 Chroot allows user based namespace isolation on many standard Linux deployments.
 
@@ -14,18 +14,19 @@ Chroot allows user based namespace isolation on many standard Linux deployments.
 Build MinIO from source and install it in the chroot directory:
 
 ```sh
-# Build MinIO from source
-go install github.com/minio/minio@latest
+# From a checkout of relvo-labs/granary, with the go.mod toolchain:
+CGO_ENABLED=0 GOTOOLCHAIN=local go build -o granary .
 
 # Create the bin directory in your chroot
 mkdir -p /mnt/export/${USER}/bin
 
 # Copy the built binary to the chroot directory
-cp $(go env GOPATH)/bin/minio /mnt/export/${USER}/bin/minio
-chmod +x /mnt/export/${USER}/bin/minio
+cp ./granary /mnt/export/${USER}/bin/granary
+chmod +x /mnt/export/${USER}/bin/granary
 ```
 
-Alternatively, if you have an existing legacy binary, you can still use it, but note that it will not receive updates.
+Granary is an unofficial fork derived from MinIO. Self-update is disabled;
+replace the Granary binary manually. No published Granary binary is available yet.
 
 Bind your `proc` mount to the target chroot directory
 
@@ -38,7 +39,7 @@ sudo mount --bind /proc /mnt/export/${USER}/proc
 ### GNU/Linux
 
 ```sh
-sudo chroot --userspec username:group /mnt/export/${USER} /bin/minio --config-dir=/.minio server /data
+sudo chroot --userspec username:group /mnt/export/${USER} /bin/granary --config-dir=/.minio server /data
 
 Endpoint:  http://192.168.1.92:9000  http://65.19.167.92:9000
 AccessKey: MVPSPBW4NP2CMV1W3TXD

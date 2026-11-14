@@ -3,7 +3,8 @@
 Before changing files, read `docs/maintenance/plan.md` and
 `.agent/skills/fork-maintenance/SKILL.md`, then the relevant source and tests.
 This repository is `relvo-labs/granary` (Granary, formerly `relvo-labs/minio`),
-not the upstream vendor repository.
+not the upstream vendor repository. The Go module path is
+`github.com/relvo-labs/granary`.
 
 Use the Granary name, clearly identify the project as an unofficial fork derived
 from MinIO, and preserve upstream copyright, license and notice files. Never

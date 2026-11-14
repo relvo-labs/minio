@@ -1,6 +1,6 @@
 # Unofficial fork maintenance plan
 
-Version: 0.2.0
+Version: 0.3.0
 
 This plan covers the initial maintenance of Granary (`relvo-labs/granary`,
 formerly `relvo-labs/minio`). On 2026-11-14 the owner renamed the fork to
@@ -36,7 +36,8 @@ merging pull requests, deploying services, or changing production data.
    Granary name with MinIO attribution; (b) repository rename (done
    2026-11-14, GitHub redirects the old URL); (c) binary, Dockerfiles, helm and
    download/image references; (d) Go module path
-   `github.com/minio/minio` → `github.com/relvo-labs/granary`, last. Keep S3
+   `github.com/relvo-labs/granary`, last (**done-in-PR**, owner-approved
+   2026-11-14). Merge and publication remain separate owner actions. Keep S3
    behavior, `MINIO_*` variables, `.minio.sys`, `x-minio-*` headers and `mc`
    compatibility; `GRANARY_*` aliases may be added without removing old names.
 

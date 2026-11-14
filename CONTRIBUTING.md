@@ -20,8 +20,9 @@ boundaries. Keep credentials and operational data out of reports and tests.
 Fork [relvo-labs/granary](https://github.com/relvo-labs/granary/fork) to your own
 repository and clone that fork. For a local source build and first readiness
 check, follow the [README](README.md#build-and-try-locally). The module path
-remains `github.com/minio/minio`; installing that path at `@latest` fetches
-upstream rather than this fork.
+is `github.com/relvo-labs/granary`. Build the selected checkout locally;
+installation from the new path at `@latest` requires the module migration to
+land on `master` and has not been verified here.
 
 `make ci-build` produces `./granary`; `make install` copies it to
 `$(go env GOPATH)/bin/granary`. Verify with `./granary --version` and

@@ -72,10 +72,11 @@ Metadata is stored in `xl.meta` files for erasure coded objects. Each disk in th
 
 ### Installing xl-meta
 
-To install, [Go](https://golang.org/dl/) must be installed. Once installed, execute this to install the binary:
+From the selected Granary checkout, build the root module
+(`github.com/relvo-labs/granary`) tool with the pinned Go toolchain:
 
 ```bash
-go install github.com/minio/minio/docs/debugging/xl-meta@latest
+go build -o ./xl-meta ./docs/debugging/xl-meta
 ```
 
 ### Using xl-meta
@@ -118,13 +119,14 @@ This file can be decrypted using the decryption tool below:
 
 ### Installing decryption tool
 
-To install, [Go](https://golang.org/dl/) must be installed.
-
-Once installed, execute this to install the binary:
+From the selected Granary checkout, build the independent module locally:
 
 ```bash
-go install github.com/minio/minio/docs/debugging/inspect@latest
+go build -C docs/debugging/inspect -o ../../../inspect .
 ```
+
+This independent debugging module retains its inherited module identity and Go
+version pins (#27); it does not import the root module.
 
 ### Usage
 

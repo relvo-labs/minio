@@ -18,7 +18,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -26,7 +25,6 @@ import (
 	"math/rand"
 	"net/http"
 	"net/url"
-	"runtime"
 	"sync"
 	"time"
 
@@ -376,51 +374,6 @@ func (sys *NotificationSys) DownloadProfilingData(ctx context.Context, writer io
 	}
 
 	return profilingDataFound
-}
-
-// VerifyBinary - asks remote peers to verify the checksum
-func (sys *NotificationSys) VerifyBinary(ctx context.Context, u *url.URL, sha256Sum []byte, releaseInfo string, bin []byte) []NotificationPeerErr {
-	// FIXME: network calls made in this manner such as one goroutine per node,
-	// can easily eat into the internode bandwidth. This function would be mostly
-	// TX saturating, however there are situations where a RX might also saturate.
-	// To avoid these problems we must split the work at scale. With 1000 node
-	// setup becoming a reality we must try to shard the work properly such as
-	// pick 10 nodes that precisely can send those 100 requests the first node
-	// in the 10 node shard would coordinate between other 9 shards to get the
-	// rest of the `99*9` requests.
-	//
-	// This essentially splits the workload properly and also allows for network
-	// utilization to be optimal, instead of blindly throttling the way we are
-	// doing below. However the changes that are needed here are a bit involved,
-	// further discussion advised. Remove this comment and remove the worker model
-	// for this function in future.
-	maxWorkers := runtime.GOMAXPROCS(0) / 2
-	ng := WithNPeersThrottled(len(sys.peerClients), maxWorkers)
-	for idx, client := range sys.peerClients {
-		if client == nil {
-			continue
-		}
-		client := client
-		ng.Go(ctx, func() error {
-			return client.VerifyBinary(ctx, u, sha256Sum, releaseInfo, bytes.NewReader(bin))
-		}, idx, *client.host)
-	}
-	return ng.Wait()
-}
-
-// CommitBinary - asks remote peers to overwrite the old binary with the new one
-func (sys *NotificationSys) CommitBinary(ctx context.Context) []NotificationPeerErr {
-	ng := WithNPeers(len(sys.peerClients))
-	for idx, client := range sys.peerClients {
-		if client == nil {
-			continue
-		}
-		client := client
-		ng.Go(ctx, func() error {
-			return client.CommitBinary(ctx)
-		}, idx, *client.host)
-	}
-	return ng.Wait()
 }
 
 // SignalConfigReload reloads requested sub-system on a remote peer dynamically.

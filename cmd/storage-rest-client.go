@@ -33,14 +33,14 @@ import (
 	"time"
 
 	"github.com/minio/madmin-go/v3"
-	"github.com/minio/minio/internal/bpool"
-	"github.com/minio/minio/internal/cachevalue"
-	"github.com/minio/minio/internal/grid"
-	xhttp "github.com/minio/minio/internal/http"
-	xioutil "github.com/minio/minio/internal/ioutil"
-	"github.com/minio/minio/internal/rest"
 	xnet "github.com/minio/pkg/v3/net"
 	xbufio "github.com/philhofer/fwd"
+	"github.com/relvo-labs/granary/internal/bpool"
+	"github.com/relvo-labs/granary/internal/cachevalue"
+	"github.com/relvo-labs/granary/internal/grid"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	xioutil "github.com/relvo-labs/granary/internal/ioutil"
+	"github.com/relvo-labs/granary/internal/rest"
 	"github.com/tinylib/msgp/msgp"
 )
 

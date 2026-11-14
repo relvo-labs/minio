@@ -23,8 +23,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/minio/minio/internal/bucket/replication"
 	"github.com/rcrowley/go-metrics"
+	"github.com/relvo-labs/granary/internal/bucket/replication"
 )
 
 func (b *BucketReplicationStats) hasReplicationUsage() bool {

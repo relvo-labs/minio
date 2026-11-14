@@ -24,17 +24,17 @@ import (
 	"path"
 	"strings"
 
-	"github.com/minio/minio/internal/config"
-	"github.com/minio/minio/internal/config/compress"
-	xldap "github.com/minio/minio/internal/config/identity/ldap"
-	"github.com/minio/minio/internal/config/identity/openid"
-	"github.com/minio/minio/internal/config/notify"
-	"github.com/minio/minio/internal/config/policy/opa"
-	"github.com/minio/minio/internal/config/storageclass"
-	"github.com/minio/minio/internal/event/target"
-	"github.com/minio/minio/internal/logger"
 	xnet "github.com/minio/pkg/v3/net"
 	"github.com/minio/pkg/v3/quick"
+	"github.com/relvo-labs/granary/internal/config"
+	"github.com/relvo-labs/granary/internal/config/compress"
+	xldap "github.com/relvo-labs/granary/internal/config/identity/ldap"
+	"github.com/relvo-labs/granary/internal/config/identity/openid"
+	"github.com/relvo-labs/granary/internal/config/notify"
+	"github.com/relvo-labs/granary/internal/config/policy/opa"
+	"github.com/relvo-labs/granary/internal/config/storageclass"
+	"github.com/relvo-labs/granary/internal/event/target"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 // Save config file to corresponding backend

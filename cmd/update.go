@@ -30,8 +30,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/v3/env"
+	"github.com/relvo-labs/granary/internal/logger"
 	gopsutilcpu "github.com/shirou/gopsutil/v3/cpu"
 )
 

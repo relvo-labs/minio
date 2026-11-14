@@ -27,8 +27,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/minio/minio/internal/config"
 	"github.com/minio/pkg/v3/env"
+	"github.com/relvo-labs/granary/internal/config"
 )
 
 // API sub-system constants

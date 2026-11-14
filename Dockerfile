@@ -11,7 +11,7 @@ ARG VERSION=development
 ARG COMMIT_ID=unknown
 RUN test "$(go env GOVERSION)" = "go$(sed -n 's/^toolchain go//p' go.mod)" && \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -tags kqueue -trimpath \
-    -ldflags "-s -w -X github.com/minio/minio/cmd.ReleaseTag=${VERSION} -X github.com/minio/minio/cmd.CommitID=${COMMIT_ID} -X github.com/minio/minio/cmd.CopyrightYear=$(date -u +%Y)" \
+    -ldflags "-s -w -X github.com/relvo-labs/granary/cmd.ReleaseTag=${VERSION} -X github.com/relvo-labs/granary/cmd.CommitID=${COMMIT_ID} -X github.com/relvo-labs/granary/cmd.CopyrightYear=$(date -u +%Y)" \
     -o /out/granary .
 
 FROM debian:bookworm-slim

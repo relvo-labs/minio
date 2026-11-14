@@ -21,7 +21,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	xhttp "github.com/minio/minio/internal/http"
+	xhttp "github.com/relvo-labs/granary/internal/http"
 )
 
 // TestChecksumAddToHeader tests that adding and retrieving a checksum on a header works

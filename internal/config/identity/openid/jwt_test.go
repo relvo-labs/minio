@@ -31,10 +31,10 @@ import (
 	"time"
 
 	jwtgo "github.com/golang-jwt/jwt/v4"
-	"github.com/minio/minio/internal/arn"
-	"github.com/minio/minio/internal/config"
-	jwtm "github.com/minio/minio/internal/jwt"
 	xnet "github.com/minio/pkg/v3/net"
+	"github.com/relvo-labs/granary/internal/arn"
+	"github.com/relvo-labs/granary/internal/config"
+	jwtm "github.com/relvo-labs/granary/internal/jwt"
 )
 
 func TestUpdateClaimsExpiry(t *testing.T) {

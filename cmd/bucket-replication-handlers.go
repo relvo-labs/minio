@@ -29,12 +29,12 @@ import (
 	"time"
 
 	"github.com/minio/minio-go/v7"
-	objectlock "github.com/minio/minio/internal/bucket/object/lock"
-	"github.com/minio/minio/internal/bucket/replication"
-	xhttp "github.com/minio/minio/internal/http"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/mux"
 	"github.com/minio/pkg/v3/policy"
+	objectlock "github.com/relvo-labs/granary/internal/bucket/object/lock"
+	"github.com/relvo-labs/granary/internal/bucket/replication"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 // PutBucketReplicationConfigHandler - PUT Bucket replication configuration.

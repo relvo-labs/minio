@@ -34,19 +34,19 @@ import (
 	"sync"
 	"time"
 
-	"github.com/minio/minio/internal/bpool"
-	"github.com/minio/minio/internal/grid"
+	"github.com/relvo-labs/granary/internal/bpool"
+	"github.com/relvo-labs/granary/internal/grid"
 	"github.com/tinylib/msgp/msgp"
 
 	jwtreq "github.com/golang-jwt/jwt/v4/request"
 	"github.com/minio/madmin-go/v3"
-	"github.com/minio/minio/internal/config"
-	xhttp "github.com/minio/minio/internal/http"
-	xioutil "github.com/minio/minio/internal/ioutil"
-	xjwt "github.com/minio/minio/internal/jwt"
-	"github.com/minio/minio/internal/logger"
 	"github.com/minio/mux"
 	xnet "github.com/minio/pkg/v3/net"
+	"github.com/relvo-labs/granary/internal/config"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	xioutil "github.com/relvo-labs/granary/internal/ioutil"
+	xjwt "github.com/relvo-labs/granary/internal/jwt"
+	"github.com/relvo-labs/granary/internal/logger"
 )
 
 var errDiskStale = errors.New("drive stale")

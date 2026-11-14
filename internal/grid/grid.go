@@ -32,7 +32,7 @@ import (
 
 	"github.com/gobwas/ws"
 	"github.com/gobwas/ws/wsutil"
-	"github.com/minio/minio/internal/bpool"
+	"github.com/relvo-labs/granary/internal/bpool"
 )
 
 // ErrDisconnected is returned when the connection to the remote has been lost during the call.

@@ -33,15 +33,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/minio/minio/internal/auth"
-	objectlock "github.com/minio/minio/internal/bucket/object/lock"
-	"github.com/minio/minio/internal/etag"
-	"github.com/minio/minio/internal/hash"
-	xhttp "github.com/minio/minio/internal/http"
-	xjwt "github.com/minio/minio/internal/jwt"
-	"github.com/minio/minio/internal/logger"
-	"github.com/minio/minio/internal/mcontext"
 	"github.com/minio/pkg/v3/policy"
+	"github.com/relvo-labs/granary/internal/auth"
+	objectlock "github.com/relvo-labs/granary/internal/bucket/object/lock"
+	"github.com/relvo-labs/granary/internal/etag"
+	"github.com/relvo-labs/granary/internal/hash"
+	xhttp "github.com/relvo-labs/granary/internal/http"
+	xjwt "github.com/relvo-labs/granary/internal/jwt"
+	"github.com/relvo-labs/granary/internal/logger"
+	"github.com/relvo-labs/granary/internal/mcontext"
 )
 
 // Verify if request has JWT.

@@ -18,7 +18,7 @@
 package ldap
 
 import (
-	"github.com/minio/minio/internal/config"
+	"github.com/relvo-labs/granary/internal/config"
 )
 
 // LegacyConfig contains AD/LDAP server connectivity information from old config

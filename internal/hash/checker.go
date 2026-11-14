@@ -23,7 +23,7 @@ import (
 	"hash"
 	"io"
 
-	"github.com/minio/minio/internal/ioutil"
+	"github.com/relvo-labs/granary/internal/ioutil"
 )
 
 // Checker allows to verify the checksum of a reader.

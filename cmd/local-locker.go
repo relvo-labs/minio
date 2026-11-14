@@ -27,7 +27,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/minio/minio/internal/dsync"
+	"github.com/relvo-labs/granary/internal/dsync"
 )
 
 // Reject new lock requests immediately when this many are queued

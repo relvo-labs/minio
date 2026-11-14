@@ -25,12 +25,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/minio/minio/internal/config"
-	"github.com/minio/minio/internal/mcontext"
 	"github.com/minio/mux"
 	"github.com/minio/pkg/v3/env"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/relvo-labs/granary/internal/config"
+	"github.com/relvo-labs/granary/internal/mcontext"
 )
 
 type promLogger struct{}

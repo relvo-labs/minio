@@ -22,8 +22,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/minio/minio/internal/s3select/jstream"
 	"github.com/minio/simdjson-go"
+	"github.com/relvo-labs/granary/internal/s3select/jstream"
 )
 
 var errBadLimitSpecified = errors.New("Limit value must be a positive integer")

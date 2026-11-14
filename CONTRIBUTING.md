@@ -35,7 +35,7 @@ git checkout -b docs/issue-4-description
 
 Add relevant tests for code changes. Use the canonical
 [CI runbook](docs/maintenance/ci.md#local-reproduction-linux-amd64arm64)
-for actual Make targets, pinned-tool setup, Go 1.27.3 selection and resource
+for actual Make targets, pinned-tool setup, Go 1.27.4 selection and resource
 preconditions. It also documents incomplete gates, including stringer coverage
 (#13) and manual heavy integrations. Run generation checks in a scratch clone:
 they rewrite files. Heavy targets can install into `GOPATH/bin`, so follow the

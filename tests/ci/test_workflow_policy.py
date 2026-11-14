@@ -650,11 +650,11 @@ class RepositoryPins(unittest.TestCase):
         self.assertEqual(self.errors(), "")
 
     def test_toolchain_drift(self):
-        self._edit("go.mod", "toolchain go1.27.3", "toolchain go1.24.9")
+        self._edit("go.mod", "toolchain go1.27.4", "toolchain go1.24.9")
         self.assertIn("toolchain directive", self.errors())
 
     def test_toolchain_missing(self):
-        self._edit("go.mod", "toolchain go1.27.3\n", "")
+        self._edit("go.mod", "toolchain go1.27.4\n", "")
         self.assertIn("toolchain directive []", self.errors())
 
     def test_pyyaml_pin_drift(self):

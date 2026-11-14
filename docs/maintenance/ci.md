@@ -45,7 +45,7 @@ exits nonzero when a reachable symbol is affected.
 ## Pins
 
 Go: every job uses `actions/setup-go` with `go-version-file: go.mod`, which
-selects the `toolchain go1.27.3` directive, and `make ci-go-version` fails if the
+selects the `toolchain go1.27.4` directive, and `make ci-go-version` fails if the
 active Go differs.
 
 Actions are pinned to the commit of a release tag. The SHAs come from
@@ -99,7 +99,7 @@ These are errors, not warnings:
 - The Make targets of each portable workflow and of `go-race.yml` are exact.
   Every target exists in the Makefile. Race targets must not run in a portable
   workflow.
-- In the repository, the go.mod toolchain is go1.27.3. The PyYAML pin agrees in
+- In the repository, the go.mod toolchain is go1.27.4. The PyYAML pin agrees in
   `tools.env` and `requirements-ci.txt`. Each checksummed tool version has an
   amd64 and arm64 hash.
 
@@ -109,7 +109,7 @@ fails.
 
 ## Local reproduction (Linux amd64/arm64)
 
-Use Go 1.27.3 first on `PATH` with `GOTOOLCHAIN=local`. Set
+Use Go 1.27.4 first on `PATH` with `GOTOOLCHAIN=local`. Set
 `CI_TOOLS_DIR=/some/scratch/dir` to keep tools outside the checkout.
 
 ```sh

@@ -1,23 +1,23 @@
-# MinIO contribution guide — unofficial fork
+# Granary contribution guide — unofficial MinIO fork
 
-This guide is for [relvo-labs/minio](https://github.com/relvo-labs/minio), an
-independent, unofficial maintenance fork, not affiliated with or endorsed by
-MinIO, Inc. Route contributions and non-sensitive bug reports to this fork.
-Read [SECURITY.md](SECURITY.md) before sharing a suspected vulnerability;
-there is currently no approved private reporting channel.
+This guide is for Granary ([relvo-labs/granary](https://github.com/relvo-labs/granary)),
+an independent, unofficial maintenance fork of MinIO, not affiliated with or
+endorsed by MinIO, Inc. Route contributions and non-sensitive bug reports to this fork.
+Report suspected vulnerabilities privately as described in
+[SECURITY.md](SECURITY.md), not in public issues.
 
 ## Development Workflow
 
 Read [AGENTS.md](AGENTS.md), the [maintenance plan](docs/maintenance/plan.md)
 and the [fork-maintenance skill](.agent/skills/fork-maintenance/SKILL.md)
 before changing files. Link work to a
-[fork issue](https://github.com/relvo-labs/minio/issues), use a non-default
+[fork issue](https://github.com/relvo-labs/granary/issues), use a non-default
 branch and open a Draft checkpoint. Preserve upstream notices and compatibility
 boundaries. Keep credentials and operational data out of reports and tests.
 
-### Setup your MinIO GitHub Repository
+### Set up your Granary GitHub repository
 
-Fork [relvo-labs/minio](https://github.com/relvo-labs/minio/fork) to your own
+Fork [relvo-labs/granary](https://github.com/relvo-labs/granary/fork) to your own
 repository and clone that fork. For a local source build and first readiness
 check, follow the [README](README.md#build-and-try-locally). The module path
 remains `github.com/minio/minio`; installing that path at `@latest` fetches
@@ -31,7 +31,7 @@ Before making code changes, make sure you create a separate branch for these cha
 git checkout -b docs/issue-4-description
 ```
 
-### Test MinIO server changes
+### Test server changes
 
 Add relevant tests for code changes. Use the canonical
 [CI runbook](docs/maintenance/ci.md#local-reproduction-linux-amd64arm64)
@@ -75,9 +75,9 @@ require explicit owner authority.
 
 ## FAQs
 
-### How does ``MinIO`` manage dependencies?
+### How does Granary manage dependencies?
 
-``MinIO`` uses `go mod` to manage its dependencies.
+Granary uses `go mod` to manage its dependencies.
 
 - Run `go get foo/bar` in the source folder to add the dependency to `go.mod` file.
 
@@ -86,7 +86,7 @@ To remove a dependency
 - Edit your code and remove the import reference.
 - Run `go mod tidy` in the source folder to remove dependency from `go.mod` file.
 
-### What are the coding guidelines for MinIO?
+### What are the coding guidelines for Granary?
 
 Follow Go style and the repository's existing conventions. Refer to the Go
 project's [code review comments](https://go.dev/wiki/CodeReviewComments).

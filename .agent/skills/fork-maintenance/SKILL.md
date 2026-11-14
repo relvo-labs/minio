@@ -1,6 +1,6 @@
 ---
 name: fork-maintenance
-description: "Use when maintaining this unofficial MinIO fork."
+description: "Use when maintaining Granary, the unofficial MinIO fork."
 version: 0.1.0
 author: Neil Lei (Lei-k), Hermes Agent
 license: AGPL-3.0-only

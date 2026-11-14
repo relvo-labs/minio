@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Pinned, checksum-verified CI tool installer for the unofficial
-# relvo-labs/minio fork (issue #3).  Used identically by local runs and the
+# relvo-labs/granary fork (issue #3).  Used identically by local runs and the
 # GitHub workflows.  Nothing is installed globally.
 #
 # Usage: install-tools.sh TOOLS_DIR TOOL...

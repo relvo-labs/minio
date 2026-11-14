@@ -2,10 +2,13 @@
 
 Before changing files, read `docs/maintenance/plan.md` and
 `.agent/skills/fork-maintenance/SKILL.md`, then the relevant source and tests.
-This repository is `relvo-labs/minio`, not the upstream vendor repository.
+This repository is `relvo-labs/granary` (Granary, formerly `relvo-labs/minio`),
+not the upstream vendor repository.
 
-Keep the MinIO name, clearly identify the project as an unofficial fork, and
-preserve upstream copyright, license and notice files. Never imply endorsement.
+Use the Granary name, clearly identify the project as an unofficial fork derived
+from MinIO, and preserve upstream copyright, license and notice files. Never
+imply endorsement. Follow the phased rename in issue #21; keep `MINIO_*`
+variables, `.minio.sys`, `x-minio-*` headers and `mc` compatibility.
 
 Use issue-linked, non-default branches and Draft checkpoints. Do not merge,
 publish releases/images, deploy or change repository settings without explicit

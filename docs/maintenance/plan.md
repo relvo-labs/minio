@@ -1,11 +1,14 @@
 # Unofficial fork maintenance plan
 
-Version: 0.1.0
+Version: 0.2.0
 
-This plan covers the initial maintenance of `relvo-labs/minio`. The owner has
-selected keeping the MinIO name with a prominent unofficial-fork disclaimer.
-It does not authorize publishing releases, binaries or container images, merging
-pull requests, deploying services, or changing production data.
+This plan covers the initial maintenance of Granary (`relvo-labs/granary`,
+formerly `relvo-labs/minio`). On 2026-11-14 the owner renamed the fork to
+Granary, superseding the 2026-11-09 decision to keep the MinIO name, enabled
+GitHub private vulnerability reporting, and selected `vYYYY.MM.DD` release tags
+with `ghcr.io/relvo-labs/granary` images. Publishing a specific release still
+requires its own qualification and owner go-ahead. This plan does not authorize
+merging pull requests, deploying services, or changing production data.
 
 ## Sequence and acceptance
 
@@ -26,9 +29,16 @@ pull requests, deploying services, or changing production data.
    Do not use upstream-only runners, credentials or project automation.
 3. **Fork documentation — issue #4.** Explain the unofficial relationship, source
    build path, maintenance boundaries and inherited upstream references. Keep
-   upstream attribution, LICENSE, NOTICE and CREDITS. Retain the MinIO name;
-   do not imply vendor sponsorship, support or official artifacts. Release and
-   artifact publishing remain undecided and must not be advertised as available.
+   upstream attribution, LICENSE, NOTICE and CREDITS. Do not imply vendor
+   sponsorship, support or official artifacts. No artifact is advertised as
+   available until it is actually published.
+4. **Rename to Granary — issue #21.** In separate PRs: (a) public docs use the
+   Granary name with MinIO attribution; (b) repository rename (done
+   2026-11-14, GitHub redirects the old URL); (c) binary, Dockerfiles, helm and
+   download/image references; (d) Go module path
+   `github.com/minio/minio` → `github.com/relvo-labs/granary`, last. Keep S3
+   behavior, `MINIO_*` variables, `.minio.sys`, `x-minio-*` headers and `mc`
+   compatibility; `GRANARY_*` aliases may be added without removing old names.
 
 The umbrella is issue #5. Record new verified problems in deduplicated issues;
 issue creation is tracking, not proof of implementation or authority to release.

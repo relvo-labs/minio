@@ -4,7 +4,7 @@ Granary is an unofficial fork derived from MinIO, without affiliation with or
 endorsement by MinIO, Inc. Upstream copyright and license notices are retained.
 
 **The Granary image is not yet published.** The default
-`ghcr.io/relvo-labs/granary:unpublished` is a placeholder, not an available
+`docker.io/neil0628/granary:unpublished` is a placeholder, not an available
 release. Build the root Dockerfile, make that image available to your cluster,
 and override `image.repository` and `image.tag` before installing. For example,
 with a locally loaded `granary-local:phase3` image:

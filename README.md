@@ -23,9 +23,10 @@ and known boundaries, including the [stringer coverage gap (#13)](https://github
 manual heavy integrations and pending hosted evidence.
 
 As of **2026-11-14**, this fork has no GitHub releases. Planned releases will use
-`vYYYY.MM.DD` tags and `ghcr.io/relvo-labs/granary` images; none are published
+`vYYYY.MM.DD` tags and `docker.io/neil0628/granary` images; none are published
 yet. Upstream `minio/minio` releases and images are not Granary releases. Build
-the checked-out fork source to evaluate it locally.
+the checked-out fork source to evaluate it locally. The maintainer-host image
+script and manual dry-run workflow are described in the [release runbook](docs/maintenance/release.md).
 
 [Build and try locally](#build-and-try-locally) ·
 [Find your next step](#find-your-next-step) ·
@@ -173,7 +174,7 @@ docker run --rm granary-local:dev --version
 ```
 
 The [Helm chart](helm/granary) defaults to
-`ghcr.io/relvo-labs/granary:unpublished`. **The Granary image is not yet
+`docker.io/neil0628/granary:unpublished`. **The Granary image is not yet
 published**; override the placeholder with an image you built and made
 available to your cluster. No binary or image release is advertised yet.
 Self-update and background update checks are disabled; install a Granary

@@ -1,0 +1,37 @@
+name: Release image dry run
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Verify linux/amd64 and linux/arm64 release images
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Register QEMU on this disposable runner
+        # Multi-arch index read anonymously from Docker Hub on 2026-11-14.
+        run: docker run --privileged --rm docker.io/tonistiigi/binfmt@sha256:400a4873b838d1b89194d982c45e5fb3cda4593fbfd7e08a02e76b03b21166f0 --install amd64,arm64
+      - name: Build and execute both platform binaries without publishing
+        env:
+          GOTOOLCHAIN: local
+          CGO_ENABLED: 0
+          GOMAXPROCS: 6
+          GOMEMLIMIT: 6GiB
+        run: |
+          make ci-go-version
+          docker buildx version
+          make release-image VERSION="$(date -u +v%Y.%m.%d)"

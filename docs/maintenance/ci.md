@@ -11,7 +11,7 @@ run, heavy integration or full `-race` run is claimed by this document.
 | --- | --- | --- |
 | portable | `workflow_dispatch`, `pull_request` types `[ready_for_review]` | `go-lint.yml`, `go-cross.yml`, `vulncheck.yml`, `typos.yml`, `shfmt.yml`, `helm-lint.yml` |
 | pr-metadata | `pull_request` types `[ready_for_review]` only | `depsreview.yaml` (needs a PR payload) |
-| heavy | `workflow_dispatch` only | `go-race.yml`, `go.yml`, `go-healing.yml`, `go-resiliency.yml`, `iam-integrations.yaml`, `mint.yml`, `replication.yaml`, `root-disable.yml`, `upgrade-ci-cd.yaml` |
+| heavy | `workflow_dispatch` only | `go-race.yml`, `go.yml`, `go-healing.yml`, `go-resiliency.yml`, `iam-integrations.yaml`, `mint.yml`, `replication.yaml`, `root-disable.yml`, `upgrade-ci-cd.yaml`, `release-dryrun.yml` |
 | removed | none | `issues.yaml`, `lock.yml` |
 
 Push, schedule, other PR activity types, `workflow_run`, `workflow_call`,
@@ -33,6 +33,7 @@ Every workflow calls the Makefile, so a local run uses the same commands.
 | `vulncheck.yml` | `ci-vulncheck` |
 | `typos.yml`, `shfmt.yml`, `helm-lint.yml` | `ci-typos`, `ci-shfmt`, `ci-helm-lint` |
 | `go-race.yml` (manual) | `ci-test-race` |
+| `release-dryrun.yml` (manual) | `ci-go-version`, `release-image` (both image platforms; no push) |
 
 `ci-test` is the `make test` command (`go test -v -tags kqueue,dev ./...` with
 `CGO_ENABLED=0`, `MINIO_API_REQUESTS_MAX=10000`). `ci-test-race` runs the
@@ -172,8 +173,10 @@ comment. The digests were read on 2026-11-14 with anonymous
 | `debian:bookworm-slim` | `sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc` |
 
 `ci-helm-lint` uses `helm/granary`; its server image tag `unpublished` is a
-placeholder because the Granary image is not yet published. Provisioning jobs
-retain the separate upstream `mc` client image. Self-update and upstream update
+placeholder because the Docker Hub `docker.io/neil0628/granary` image is not
+yet published. The [release runbook](release.md) describes host-local
+publishing and the manual dry-run workflow; neither has publication authority.
+Provisioning jobs retain the separate upstream `mc` client image. Self-update and upstream update
 notifications are disabled; install replacement Granary builds manually.
 
 The single root Dockerfile replaces `Dockerfile.release`,

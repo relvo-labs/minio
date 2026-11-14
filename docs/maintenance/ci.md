@@ -138,11 +138,12 @@ The root module and linker symbol prefix are `github.com/relvo-labs/granary`.
 Independent modules under `docs/debugging` retain their inherited module paths
 and Go pins because they do not import the root module (#27).
 
-`ci-build` produces `./granary` and then fails unless `./granary --version`
-reports the `git rev-parse HEAD` commit (full or 12-character short form) and
-no `DEVELOPMENT.GOGET` placeholder (#34). The Go linker silently ignores an
-`-X` flag with a wrong package path, so the result is checked rather than the
-flags. `make check-version-stamp VERSION_STAMP_BIN=/path/to/granary` runs the
+`ci-build` produces `./granary` and then fails unless the `(commit-id=...)`
+field of `./granary --version` is exactly the full `git rev-parse HEAD` commit
+and there is no `DEVELOPMENT.GOGET` placeholder (#34); the commit elsewhere in
+the output, such as in the binary name, does not count. The Go linker silently
+ignores an `-X` flag with a wrong package path, so the result is checked rather
+than the flags. `make check-version-stamp VERSION_STAMP_BIN=/path/to/granary` runs the
 same check, `buildscripts/check-version-stamp.sh`, on any binary.
 
 The root Dockerfile compiles this checkout with Go 1.27.4. `.git` is not in
@@ -150,7 +151,11 @@ its build context, so `make docker` passes the commit ID and commit time from
 the `make build` ldflags (plus `MINIO_RELEASE`/`MINIO_HOTFIX`) as build args.
 The build stage runs `buildscripts/gen-ldflags.go` with them, so the image
 binary carries the same `Version`, `ReleaseTag`, `CommitID`, `ShortCommitID`
-and `CopyrightYear` as `make build`, and then runs the version check (#29). A
+and `CopyrightYear` as `make build`, and then runs the version check (#29).
+`gen-ldflags.go` rejects a commit ID other than 40 lowercase hex digits and a
+`MINIO_RELEASE`/`MINIO_HOTFIX` other than up to 64 `[A-Za-z0-9._-]` characters
+starting with a letter or digit, so build metadata cannot add linker flags; the
+Docker build also fails if they are given without the commit args. A
 plain `docker build .` without these args still builds, with the
 `DEVELOPMENT.GOGET` placeholders of an unstamped build. `Version` also sets the
 `WrittenByVersion` of new `xl.meta` versions; an unstamped binary records `0`

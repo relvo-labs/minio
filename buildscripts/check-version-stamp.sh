@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 # Granary is an unofficial fork derived from MinIO.
 #
-# Fail unless BINARY --version reports COMMIT (full or 12-character short form)
-# and no DEVELOPMENT.GOGET placeholder.  A mistyped -X package path in the
+# Fail unless the commit-id field of the BINARY --version banner,
+# "NAME version RELEASE (commit-id=COMMIT)" (cmd/main.go versionBanner), is
+# exactly the full COMMIT and the output has no DEVELOPMENT.GOGET placeholder.
+# The commit may appear elsewhere (binary name, release suffix) for a stale
+# binary, so only that field counts.  A mistyped -X package path in the
 # ldflags is silently ignored by the Go linker, so check the result (#34).
 #
 # Usage: check-version-stamp.sh BINARY COMMIT
@@ -33,8 +36,9 @@ if [[ $version == *DEVELOPMENT.GOGET* ]]; then
 	exit 1
 fi
 
-if [[ $version != *"$commit"* && $version != *"${commit:0:12}"* ]]; then
-	echo "version stamp: '$binary' does not report commit $commit:" >&2
+banner_re='^.+ version [^[:space:]]+ \(commit-id=([^[:space:]()]*)\)$'
+if [[ ! $(head -n1 <<<"$version") =~ $banner_re ]] || [[ ${BASH_REMATCH[1]} != "$commit" ]]; then
+	echo "version stamp: '$binary' does not report commit-id=$commit:" >&2
 	echo "$version" >&2
 	exit 1
 fi

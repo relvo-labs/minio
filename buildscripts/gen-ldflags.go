@@ -24,12 +24,28 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
+// Build metadata becomes part of the -ldflags string, so it must not contain
+// separators or option text that would add further linker flags.
+var (
+	commitIDRe     = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	releaseFieldRe = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9._-]{0,63})?$`)
+)
+
+func mustMatch(re *regexp.Regexp, name, value string) {
+	if !re.MatchString(value) {
+		fmt.Fprintf(os.Stderr, "gen-ldflags: invalid %s %q: must match %s\n", name, value, re)
+		os.Exit(1)
+	}
+}
+
 func genLDFlags(version, commit string) string {
+	mustMatch(commitIDRe, "commit ID", commit)
 	releaseTag, date := releaseTag(version)
 	copyrightYear := strconv.Itoa(date.Year())
 	ldflagsStr := "-s -w"
@@ -45,6 +61,9 @@ func genLDFlags(version, commit string) string {
 
 // genReleaseTag prints release tag to the console for easy git tagging.
 func releaseTag(version string) (string, time.Time) {
+	mustMatch(releaseFieldRe, "MINIO_RELEASE", os.Getenv("MINIO_RELEASE"))
+	mustMatch(releaseFieldRe, "MINIO_HOTFIX", os.Getenv("MINIO_HOTFIX"))
+
 	relPrefix := "DEVELOPMENT"
 	if prefix := os.Getenv("MINIO_RELEASE"); prefix != "" {
 		relPrefix = prefix

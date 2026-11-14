@@ -13,7 +13,9 @@ ARG TARGETARCH
 # optional release prefix/suffix that gen-ldflags.go reads from the
 # environment.  With them the binary is stamped exactly like `make build` and
 # the build fails unless `granary --version` reports COMMIT_ID.  Without them
-# it keeps the DEVELOPMENT.GOGET placeholders of an unstamped build.
+# it keeps the DEVELOPMENT.GOGET placeholders of an unstamped build, and a
+# release prefix/suffix is an error.  Each value is checked as a whole string
+# (no trailing lines) before it becomes part of the linker flags.
 ARG COMMIT_ID=
 ARG COMMIT_TIME=
 ARG MINIO_RELEASE=
@@ -21,12 +23,16 @@ ARG MINIO_HOTFIX=
 RUN set -eu; \
     test "$(go env GOVERSION)" = "go$(sed -n 's/^toolchain go//p' go.mod)"; \
     if [ -n "${COMMIT_ID}${COMMIT_TIME}" ]; then \
-        echo "${COMMIT_ID}" | grep -Eqx '[0-9a-f]{40}' || \
+        { test "${#COMMIT_ID}" -eq 40 && case "${COMMIT_ID}" in *[!0-9a-f]*) false ;; esac; } || \
             { echo "COMMIT_ID must be a full 40-character commit ID" >&2; exit 1; }; \
-        echo "${COMMIT_TIME}" | grep -Eqx '[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z' || \
-            { echo "COMMIT_TIME must be a UTC RFC3339 time (YYYY-MM-DDTHH:MM:SSZ)" >&2; exit 1; }; \
+        case "${COMMIT_TIME}" in \
+            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z) ;; \
+            *) echo "COMMIT_TIME must be a UTC RFC3339 time (YYYY-MM-DDTHH:MM:SSZ)" >&2; exit 1 ;; \
+        esac; \
         ldflags="$(go run buildscripts/gen-ldflags.go "${COMMIT_TIME}" "${COMMIT_ID}")"; \
     else \
+        test -z "${MINIO_RELEASE}${MINIO_HOTFIX}" || \
+            { echo "MINIO_RELEASE/MINIO_HOTFIX need COMMIT_ID and COMMIT_TIME (see make docker)" >&2; exit 1; }; \
         ldflags="-s -w -X github.com/relvo-labs/granary/cmd.CopyrightYear=$(date -u +%Y)"; \
     fi; \
     GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -tags kqueue -trimpath -ldflags "${ldflags}" -o /out/granary .; \

@@ -610,6 +610,17 @@ class DirectoryInventory(unittest.TestCase):
         self._edit("go-race.yml", "make ci-test-race", "make ci-test")
         self.assertIn("go-race.yml: make targets", self.errors())
 
+    def test_release_dryrun_is_manual_only(self):
+        report = wp.validate_dir(self.wf)["workflows"]["release-dryrun.yml"]
+        self.assertEqual(report["runs"], ["dispatch"])
+        self.assertEqual(set(report["make_targets"]), {"ci-go-version", "release-image"})
+        self._edit("release-dryrun.yml", "  workflow_dispatch:\n", PORTABLE_ON[4:])
+        self.assertIn("'pull_request' is forbidden for class heavy", self.errors())
+
+    def test_release_dryrun_requires_build_target(self):
+        self._edit("release-dryrun.yml", "make release-image", "make ci-go-version")
+        self.assertIn("release-dryrun.yml: make targets", self.errors())
+
     def test_undefined_make_target(self):
         mk = os.path.join(self.tmp, "Makefile")
         with open(ROOT + "/Makefile") as fh:

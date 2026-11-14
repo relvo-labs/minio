@@ -14,7 +14,7 @@ clusterDomain: cluster.local
 ## not a release tag. Build this checkout and override repository/tag with an
 ## image available to your cluster before installing.
 image:
-  repository: ghcr.io/relvo-labs/granary
+  repository: docker.io/neil0628/granary
   tag: unpublished
   pullPolicy: IfNotPresent
 

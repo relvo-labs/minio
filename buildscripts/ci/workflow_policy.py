@@ -73,6 +73,7 @@ INVENTORY = {
     "iam-integrations.yaml": HEAVY,
     "mint.yml": HEAVY,
     "replication.yaml": HEAVY,
+    "release-dryrun.yml": HEAVY,
     "root-disable.yml": HEAVY,
     "upgrade-ci-cd.yaml": HEAVY,
 }
@@ -237,6 +238,7 @@ EXPECTED_MAKE_TARGETS = {
     "helm-lint.yml": {"ci-go-version", "ci-helm-lint"},
     "depsreview.yaml": set(),
     "go-race.yml": {"ci-test-race"},
+    "release-dryrun.yml": {"ci-go-version", "release-image"},
 }
 MANUAL_ONLY_TARGETS = ("ci-test-race", "test-race")
 # buildscripts/ci/tools.env keys that need a checksum per architecture in

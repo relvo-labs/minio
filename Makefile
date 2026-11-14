@@ -6,7 +6,7 @@ GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
 VERSION ?= $(shell git describe --tags --always 2>/dev/null || echo dev)
-REPO ?= ghcr.io/relvo-labs/granary
+REPO ?= docker.io/neil0628/granary
 TAG ?= $(REPO):$(VERSION)
 
 # Pinned CI tool versions (single source of truth, also read by
@@ -193,6 +193,11 @@ hotfix-vars hotfix hotfix-push docker-hotfix docker-hotfix-push:
 
 # Value of `-X github.com/relvo-labs/granary/cmd.$(1)=...` in $(LDFLAGS).
 LDFLAG_VALUE = $(patsubst github.com/relvo-labs/granary/cmd.$(1)=%,%,$(filter github.com/relvo-labs/granary/cmd.$(1)=%,$(LDFLAGS)))
+
+.PHONY: release-image
+release-image: export VERSION := $(VERSION)
+release-image: ## dry-run both release image platforms; publishing requires the script's explicit --push
+	@env bash $(PWD)/buildscripts/release-image.sh --dry-run
 
 # The image is stamped like `make build`: the Dockerfile runs gen-ldflags.go
 # with the same commit, commit time and MINIO_RELEASE/MINIO_HOTFIX inputs.

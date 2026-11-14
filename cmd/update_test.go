@@ -26,6 +26,7 @@ import (
 	"os"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -98,34 +99,11 @@ func TestReleaseTagToNFromTimeConversion(t *testing.T) {
 }
 
 func TestDownloadURL(t *testing.T) {
-	minioVersion1 := releaseTimeToReleaseTag(UTCNow())
-	durl := getDownloadURL(minioVersion1)
-	if IsDocker() {
-		if durl != "podman pull quay.io/minio/minio:"+minioVersion1 {
-			t.Errorf("Expected %s, got %s", "podman pull quay.io/minio/minio:"+minioVersion1, durl)
-		}
-	} else {
-		if runtime.GOOS == "windows" {
-			if durl != MinioReleaseURL+"minio.exe" {
-				t.Errorf("Expected %s, got %s", MinioReleaseURL+"minio.exe", durl)
-			}
-		} else {
-			if durl != MinioReleaseURL+"minio" {
-				t.Errorf("Expected %s, got %s", MinioReleaseURL+"minio", durl)
-			}
-		}
+	for _, name := range []string{"KUBERNETES_SERVICE_HOST", "MESOS_CONTAINER_NAME"} {
+		t.Setenv(name, "test")
 	}
-
-	t.Setenv("KUBERNETES_SERVICE_HOST", "10.11.148.5")
-	durl = getDownloadURL(minioVersion1)
-	if durl != kubernetesDeploymentDoc {
-		t.Errorf("Expected %s, got %s", kubernetesDeploymentDoc, durl)
-	}
-
-	t.Setenv("MESOS_CONTAINER_NAME", "mesos-1111")
-	durl = getDownloadURL(minioVersion1)
-	if durl != mesosDeploymentDoc {
-		t.Errorf("Expected %s, got %s", mesosDeploymentDoc, durl)
+	if got := getDownloadURL(releaseTimeToReleaseTag(UTCNow())); got != "" {
+		t.Fatalf("disabled update channel advertised %q", got)
 	}
 }
 
@@ -250,48 +228,39 @@ pod-template-hash="818089471"`)
 }
 
 func TestDownloadReleaseData(t *testing.T) {
-	httpServer1 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
-	defer httpServer1.Close()
-	httpServer2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintln(w, "fbe246edbd382902db9a4035df7dce8cb441357d minio.RELEASE.2016-10-07T01-16-39Z")
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		t.Error("self-update made an HTTP request")
 	}))
-	defer httpServer2.Close()
-	httpServer3 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, "", http.StatusNotFound)
-	}))
-	defer httpServer3.Close()
-
-	testCases := []struct {
-		releaseChecksumURL string
-		expectedResult     string
-		expectedErr        error
-	}{
-		{httpServer1.URL, "", nil},
-		{httpServer2.URL, "fbe246edbd382902db9a4035df7dce8cb441357d minio.RELEASE.2016-10-07T01-16-39Z\n", nil},
-		{httpServer3.URL, "", fmt.Errorf("Error downloading URL %s. Response: 404 Not Found", httpServer3.URL)},
+	defer server.Close()
+	u, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	for _, testCase := range testCases {
-		u, err := url.Parse(testCase.releaseChecksumURL)
-		if err != nil {
-			t.Fatal(err)
+	for _, mode := range []string{"", "server"} {
+		if content, err := downloadReleaseURL(u, time.Second, mode); content != "" || err != errSelfUpdateDisabled {
+			t.Fatalf("downloadReleaseURL = %q, %v", content, err)
 		}
-
-		result, err := downloadReleaseURL(u, 1*time.Second, "")
-		switch {
-		case testCase.expectedErr == nil:
-			if err != nil {
-				t.Fatalf("error: expected: %v, got: %v", testCase.expectedErr, err)
-			}
-		case err == nil:
-			t.Fatalf("error: expected: %v, got: %v", testCase.expectedErr, err)
-		case testCase.expectedErr.Error() != err.Error():
-			t.Fatalf("error: expected: %v, got: %v", testCase.expectedErr, err)
+		if _, _, err := getLatestReleaseTime(u, time.Second, mode); err != errSelfUpdateDisabled {
+			t.Fatalf("getLatestReleaseTime = %v", err)
 		}
-
-		if testCase.expectedResult != result {
-			t.Fatalf("result: expected: %v, got: %v", testCase.expectedResult, result)
+		if _, err := getUpdateReaderFromURL(u, http.DefaultTransport, mode); err != errSelfUpdateDisabled {
+			t.Fatalf("getUpdateReaderFromURL = %v", err)
 		}
+		if _, _, err := downloadBinary(u, mode); err != errSelfUpdateDisabled {
+			t.Fatalf("downloadBinary = %v", err)
+		}
+		if err := verifyBinary(u, nil, "", mode, nil); err != errSelfUpdateDisabled {
+			t.Fatalf("verifyBinary = %v", err)
+		}
+		checkUpdate(mode)
+	}
+	if err := commitBinary(); err != errSelfUpdateDisabled {
+		t.Fatalf("commitBinary = %v", err)
+	}
+	if requests.Load() != 0 {
+		t.Fatal("self-update contacted an update server")
 	}
 }
 

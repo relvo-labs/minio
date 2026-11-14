@@ -19,44 +19,28 @@ package cmd
 
 import (
 	"bufio"
-	"crypto"
-	"crypto/tls"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
-	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync/atomic"
 	"time"
 
-	"github.com/klauspost/compress/zstd"
-	xhttp "github.com/minio/minio/internal/http"
 	"github.com/minio/minio/internal/logger"
 	"github.com/minio/pkg/v3/env"
-	xnet "github.com/minio/pkg/v3/net"
-	"github.com/minio/selfupdate"
 	gopsutilcpu "github.com/shirou/gopsutil/v3/cpu"
-	"github.com/valyala/bytebufferpool"
 )
 
-const (
-	envMinisignPubKey = "MINIO_UPDATE_MINISIGN_PUBKEY"
-	updateTimeout     = 10 * time.Second
-)
-
-var (
-	// Newer official download info URLs appear earlier below.
-	minioReleaseInfoURL = MinioReleaseURL + "minio.sha256sum"
-
-	// For windows our files have .exe additionally.
-	minioReleaseWindowsInfoURL = MinioReleaseURL + "minio.exe.sha256sum"
-)
+// No automatic update channel is configured for this unofficial fork.
+var errSelfUpdateDisabled = AdminError{
+	Code:       AdminUpdateApplyFailure,
+	Message:    "self-update is disabled in Granary; install a Granary release manually",
+	StatusCode: http.StatusMethodNotAllowed,
+}
 
 // minioVersionToReleaseTime - parses a standard official release
 // MinIO version string.
@@ -312,59 +296,7 @@ func getUserAgent(mode string) string {
 }
 
 func downloadReleaseURL(u *url.URL, timeout time.Duration, mode string) (content string, err error) {
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
-	if err != nil {
-		return content, AdminError{
-			Code:       AdminUpdateUnexpectedFailure,
-			Message:    err.Error(),
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
-	req.Header.Set("User-Agent", getUserAgent(mode))
-
-	client := &http.Client{Transport: getUpdateTransport(timeout)}
-	resp, err := client.Do(req)
-	if err != nil {
-		if xnet.IsNetworkOrHostDown(err, false) {
-			return content, AdminError{
-				Code:       AdminUpdateURLNotReachable,
-				Message:    err.Error(),
-				StatusCode: http.StatusServiceUnavailable,
-			}
-		}
-		return content, AdminError{
-			Code:       AdminUpdateUnexpectedFailure,
-			Message:    err.Error(),
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
-	if resp == nil {
-		return content, AdminError{
-			Code:       AdminUpdateUnexpectedFailure,
-			Message:    fmt.Sprintf("No response from server to download URL %s", u),
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
-	defer xhttp.DrainBody(resp.Body)
-
-	if resp.StatusCode != http.StatusOK {
-		return content, AdminError{
-			Code:       AdminUpdateUnexpectedFailure,
-			Message:    fmt.Sprintf("Error downloading URL %s. Response: %v", u, resp.Status),
-			StatusCode: resp.StatusCode,
-		}
-	}
-
-	contentBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return content, AdminError{
-			Code:       AdminUpdateUnexpectedFailure,
-			Message:    fmt.Sprintf("Error reading response. %s", err),
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
-
-	return string(contentBytes), nil
+	return "", errSelfUpdateDisabled
 }
 
 func releaseInfoToReleaseTime(releaseInfo string) (releaseTime time.Time, err error) {
@@ -422,229 +354,27 @@ func parseReleaseData(data string) (sha256Sum []byte, releaseTime time.Time, rel
 	return sha256Sum, releaseTime, releaseInfo, err
 }
 
-func getUpdateTransport(timeout time.Duration) http.RoundTripper {
-	var updateTransport http.RoundTripper = &http.Transport{
-		Proxy:                 http.ProxyFromEnvironment,
-		DialContext:           xhttp.NewInternodeDialContext(timeout, globalTCPOptions),
-		IdleConnTimeout:       timeout,
-		TLSHandshakeTimeout:   timeout,
-		ExpectContinueTimeout: timeout,
-		TLSClientConfig: &tls.Config{
-			RootCAs:            globalRootCAs,
-			ClientSessionCache: tls.NewLRUClientSessionCache(tlsClientSessionCacheSize),
-		},
-		DisableCompression: true,
-	}
-	return updateTransport
-}
-
 func getLatestReleaseTime(u *url.URL, timeout time.Duration, mode string) (sha256Sum []byte, releaseTime time.Time, err error) {
-	data, err := downloadReleaseURL(u, timeout, mode)
-	if err != nil {
-		return sha256Sum, releaseTime, err
-	}
-
-	sha256Sum, releaseTime, _, err = parseReleaseData(data)
-	return sha256Sum, releaseTime, err
+	return nil, time.Time{}, errSelfUpdateDisabled
 }
-
-const (
-	// Kubernetes deployment doc link.
-	kubernetesDeploymentDoc = "https://docs.min.io/community/minio-object-store/operations/deployments/kubernetes.html"
-
-	// Mesos deployment doc link.
-	mesosDeploymentDoc = "https://docs.min.io/community/minio-object-store/operations/deployments/kubernetes.html"
-)
 
 func getDownloadURL(releaseTag string) (downloadURL string) {
-	// Check if we are in DCOS environment, return
-	// deployment guide for update procedures.
-	if IsDCOS() {
-		return mesosDeploymentDoc
-	}
-
-	// Check if we are in kubernetes environment, return
-	// deployment guide for update procedures.
-	if IsKubernetes() {
-		return kubernetesDeploymentDoc
-	}
-
-	// Check if we are docker environment, return docker update command
-	if IsDocker() {
-		// Construct release tag name.
-		return fmt.Sprintf("podman pull quay.io/minio/minio:%s", releaseTag)
-	}
-
-	// For binary only installations, we return link to the latest binary.
-	if runtime.GOOS == "windows" {
-		return MinioReleaseURL + "minio.exe"
-	}
-
-	return MinioReleaseURL + "minio"
+	return ""
 }
 
 func getUpdateReaderFromURL(u *url.URL, transport http.RoundTripper, mode string) (io.ReadCloser, error) {
-	clnt := &http.Client{
-		Transport: transport,
-	}
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, AdminError{
-			Code:       AdminUpdateUnexpectedFailure,
-			Message:    err.Error(),
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
-
-	req.Header.Set("User-Agent", getUserAgent(mode))
-
-	resp, err := clnt.Do(req)
-	if err != nil {
-		if xnet.IsNetworkOrHostDown(err, false) {
-			return nil, AdminError{
-				Code:       AdminUpdateURLNotReachable,
-				Message:    err.Error(),
-				StatusCode: http.StatusServiceUnavailable,
-			}
-		}
-		return nil, AdminError{
-			Code:       AdminUpdateUnexpectedFailure,
-			Message:    err.Error(),
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
-	return resp.Body, nil
+	return nil, errSelfUpdateDisabled
 }
-
-var updateInProgress atomic.Uint32
 
 // Function to get the reader from an architecture
 func downloadBinary(u *url.URL, mode string) (binCompressed []byte, bin []byte, err error) {
-	transport := getUpdateTransport(30 * time.Second)
-	var reader io.ReadCloser
-	if u.Scheme == "https" || u.Scheme == "http" {
-		reader, err = getUpdateReaderFromURL(u, transport, mode)
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
-		return nil, nil, fmt.Errorf("unsupported protocol scheme: %s", u.Scheme)
-	}
-	defer xhttp.DrainBody(reader)
-
-	b := bytebufferpool.Get()
-	bc := bytebufferpool.Get()
-	defer func() {
-		b.Reset()
-		bc.Reset()
-
-		bytebufferpool.Put(b)
-		bytebufferpool.Put(bc)
-	}()
-
-	w, err := zstd.NewWriter(bc)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if _, err = io.Copy(w, io.TeeReader(reader, b)); err != nil {
-		return nil, nil, err
-	}
-
-	w.Close()
-	return bc.Bytes(), b.Bytes(), nil
+	return nil, nil, errSelfUpdateDisabled
 }
 
-const (
-	// Update this whenever the official minisign pubkey is rotated.
-	defaultMinisignPubkey = "RWTx5Zr1tiHQLwG9keckT0c45M3AGeHD6IvimQHpyRywVWGbP1aVSGav"
-)
-
 func verifyBinary(u *url.URL, sha256Sum []byte, releaseInfo, mode string, reader io.Reader) (err error) {
-	if !updateInProgress.CompareAndSwap(0, 1) {
-		return errors.New("update already in progress")
-	}
-	defer updateInProgress.Store(0)
-
-	transport := getUpdateTransport(30 * time.Second)
-	opts := selfupdate.Options{
-		Hash:     crypto.SHA256,
-		Checksum: sha256Sum,
-	}
-
-	if err := opts.CheckPermissions(); err != nil {
-		return AdminError{
-			Code:       AdminUpdateApplyFailure,
-			Message:    fmt.Sprintf("server update failed with: %s, do not restart the servers yet", err),
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
-
-	minisignPubkey := env.Get(envMinisignPubKey, defaultMinisignPubkey)
-	if minisignPubkey != "" {
-		v := selfupdate.NewVerifier()
-		u.Path = path.Dir(u.Path) + slashSeparator + releaseInfo + ".minisig"
-		if err = v.LoadFromURL(u.String(), minisignPubkey, transport); err != nil {
-			return AdminError{
-				Code:       AdminUpdateApplyFailure,
-				Message:    fmt.Sprintf("signature loading failed for %v with %v", u, err),
-				StatusCode: http.StatusInternalServerError,
-			}
-		}
-		opts.Verifier = v
-	}
-
-	if err = selfupdate.PrepareAndCheckBinary(reader, opts); err != nil {
-		var pathErr *os.PathError
-		if errors.As(err, &pathErr) {
-			return AdminError{
-				Code: AdminUpdateApplyFailure,
-				Message: fmt.Sprintf("Unable to update the binary at %s: %v",
-					filepath.Dir(pathErr.Path), pathErr.Err),
-				StatusCode: http.StatusForbidden,
-			}
-		}
-		return AdminError{
-			Code:       AdminUpdateApplyFailure,
-			Message:    err.Error(),
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
-
-	return nil
+	return errSelfUpdateDisabled
 }
 
 func commitBinary() (err error) {
-	if !updateInProgress.CompareAndSwap(0, 1) {
-		return errors.New("update already in progress")
-	}
-	defer updateInProgress.Store(0)
-
-	opts := selfupdate.Options{}
-
-	if err = selfupdate.CommitBinary(opts); err != nil {
-		if rerr := selfupdate.RollbackError(err); rerr != nil {
-			return AdminError{
-				Code:       AdminUpdateApplyFailure,
-				Message:    fmt.Sprintf("Failed to rollback from bad update: %v", rerr),
-				StatusCode: http.StatusInternalServerError,
-			}
-		}
-		var pathErr *os.PathError
-		if errors.As(err, &pathErr) {
-			return AdminError{
-				Code: AdminUpdateApplyFailure,
-				Message: fmt.Sprintf("Unable to update the binary at %s: %v",
-					filepath.Dir(pathErr.Path), pathErr.Err),
-				StatusCode: http.StatusForbidden,
-			}
-		}
-		return AdminError{
-			Code:       AdminUpdateApplyFailure,
-			Message:    err.Error(),
-			StatusCode: http.StatusInternalServerError,
-		}
-	}
-
-	return nil
+	return errSelfUpdateDisabled
 }

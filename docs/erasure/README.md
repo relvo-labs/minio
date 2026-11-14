@@ -41,10 +41,13 @@ Install MinIO - [MinIO Quickstart Guide](https://docs.min.io/community/minio-obj
 Example: Start MinIO server in a 12 drives setup, using MinIO binary.
 
 ```sh
-minio server /data{1...12}
+granary server /data{1...12}
 ```
 
 Example: Start MinIO server in a 8 drives setup, using MinIO Docker image.
+
+Build `granary-local:dev` from this fork with `docker build -t granary-local:dev .`
+first; the Granary image is not yet published.
 
 ```sh
 podman run \
@@ -59,7 +62,7 @@ podman run \
   -v /mnt/data6:/data6 \
   -v /mnt/data7:/data7 \
   -v /mnt/data8:/data8 \
-  quay.io/minio/minio server /data{1...8} --console-address ":9001"
+  granary-local:dev server /data{1...8} --console-address ":9001"
 ```
 
 ### 3. Test your setup

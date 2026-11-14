@@ -7,7 +7,7 @@ HTTP tracing can be enabled by using [`mc admin trace`](https://docs.min.io/comm
 Example:
 
 ```sh
-minio server /data
+granary server /data
 ```
 
 Default trace is succinct only to indicate the API operations being called and the HTTP response status.
@@ -35,7 +35,7 @@ Subnet Health diagnostics help ensure that the underlying infrastructure that ru
 Example:
 
 ```sh
-minio server /data{1...4}
+granary server /data{1...4}
 ```
 
 The command takes no flags

@@ -5,8 +5,8 @@ set -e
 set -E
 set -o pipefail
 
-if [ ! -x "$PWD/minio" ]; then
-	echo "minio executable binary not found in current directory"
+if [ ! -x "$PWD/granary" ]; then
+	echo "granary executable binary not found in current directory"
 	exit 1
 fi
 
@@ -26,7 +26,7 @@ export ENABLE_ADMIN=1
 export MINIO_CI_CD=1
 
 MINIO_CONFIG_DIR="$WORK_DIR/.minio"
-MINIO=("$PWD/minio" --config-dir "$MINIO_CONFIG_DIR")
+MINIO=("$PWD/granary" --config-dir "$MINIO_CONFIG_DIR")
 
 FILE_1_MB="$MINT_DATA_DIR/datafile-1-MB"
 FILE_65_MB="$MINT_DATA_DIR/datafile-65-MB"
@@ -91,7 +91,7 @@ function run_test_fs() {
 	(cd "$WORK_DIR" && "$FUNCTIONAL_TESTS")
 	rv=$?
 
-	pkill minio
+	pkill granary
 	sleep 3
 
 	if [ "$rv" -ne 0 ]; then
@@ -108,7 +108,7 @@ function run_test_erasure_sets() {
 	(cd "$WORK_DIR" && "$FUNCTIONAL_TESTS")
 	rv=$?
 
-	pkill minio
+	pkill granary
 	sleep 3
 
 	if [ "$rv" -ne 0 ]; then
@@ -125,7 +125,7 @@ function run_test_pool_erasure_sets() {
 	(cd "$WORK_DIR" && "$FUNCTIONAL_TESTS")
 	rv=$?
 
-	pkill minio
+	pkill granary
 	sleep 3
 
 	if [ "$rv" -ne 0 ]; then
@@ -150,7 +150,7 @@ function run_test_pool_erasure_sets_ipv6() {
 	(cd "$WORK_DIR" && "$FUNCTIONAL_TESTS")
 	rv=$?
 
-	pkill minio
+	pkill granary
 	sleep 3
 
 	if [ "$rv" -ne 0 ]; then
@@ -173,7 +173,7 @@ function run_test_erasure() {
 	(cd "$WORK_DIR" && "$FUNCTIONAL_TESTS")
 	rv=$?
 
-	pkill minio
+	pkill granary
 	sleep 3
 
 	if [ "$rv" -ne 0 ]; then
@@ -190,7 +190,7 @@ function run_test_dist_erasure() {
 	(cd "$WORK_DIR" && "$FUNCTIONAL_TESTS")
 	rv=$?
 
-	pkill minio
+	pkill granary
 	sleep 3
 
 	if [ "$rv" -ne 0 ]; then

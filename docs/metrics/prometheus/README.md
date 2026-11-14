@@ -40,7 +40,7 @@ MinIO supports two authentication modes for Prometheus either `jwt` or `public`,
 
 ```
 export MINIO_PROMETHEUS_AUTH_TYPE="public"
-minio server ~/test
+granary server ~/test
 ```
 
 ### 3. Configuring Prometheus

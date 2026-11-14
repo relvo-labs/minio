@@ -83,7 +83,7 @@ Press CTRL+C to quit
 
 Register MinIO with a Lambda function, we are calling our target name as `function`, but you may call it any other friendly name of your choice.
 ```
-MINIO_LAMBDA_WEBHOOK_ENABLE_function=on MINIO_LAMBDA_WEBHOOK_ENDPOINT_function=http://localhost:5000 minio server /data &
+MINIO_LAMBDA_WEBHOOK_ENABLE_function=on MINIO_LAMBDA_WEBHOOK_ENDPOINT_function=http://localhost:5000 granary server /data &
 ...
 ...
 MinIO Object Storage Server
@@ -102,14 +102,14 @@ Object Lambda ARNs: arn:minio:s3-object-lambda::function:webhook
 If your lambda target expects an authorization token then you can enable it per function target as follows
 
 ```
-MINIO_LAMBDA_WEBHOOK_ENABLE_function=on MINIO_LAMBDA_WEBHOOK_ENDPOINT_function=http://localhost:5000 MINIO_LAMBDA_WEBHOOK_AUTH_TOKEN="mytoken" minio server /data &
+MINIO_LAMBDA_WEBHOOK_ENABLE_function=on MINIO_LAMBDA_WEBHOOK_ENDPOINT_function=http://localhost:5000 MINIO_LAMBDA_WEBHOOK_AUTH_TOKEN="mytoken" granary server /data &
 ```
 
 ### Lambda Target with mTLS authentication
 
 If your lambda target expects mTLS client you can enable it per function target as follows
 ```
-MINIO_LAMBDA_WEBHOOK_ENABLE_function=on MINIO_LAMBDA_WEBHOOK_ENDPOINT_function=http://localhost:5000 MINIO_LAMBDA_WEBHOOK_CLIENT_CERT=client.crt MINIO_LAMBDA_WEBHOOK_CLIENT_KEY=client.key minio server /data &
+MINIO_LAMBDA_WEBHOOK_ENABLE_function=on MINIO_LAMBDA_WEBHOOK_ENDPOINT_function=http://localhost:5000 MINIO_LAMBDA_WEBHOOK_CLIENT_CERT=client.crt MINIO_LAMBDA_WEBHOOK_CLIENT_KEY=client.key granary server /data &
 ```
 
 ## Create a bucket and upload some data

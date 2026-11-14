@@ -1,8 +1,39 @@
-{{- if eq .Values.mode "standalone" }}
+{{- if eq .Values.mode "distributed" }}
+{{ $poolCount := .Values.pools | int }}
+{{ $nodeCount := .Values.replicas | int }}
+{{ $replicas := mul $poolCount $nodeCount }}
+{{ $drivesPerNode := .Values.drivesPerNode | int }}
 {{ $scheme := .Values.tls.enabled | ternary "https" "http" }}
+{{ $mountPath := .Values.mountPath }}
 {{ $bucketRoot := or ($.Values.bucketRoot) ($.Values.mountPath) }}
-apiVersion: {{ template "minio.deployment.apiVersion" . }}
-kind: Deployment
+{{ $subPath := .Values.persistence.subPath }}
+{{ $penabled := .Values.persistence.enabled }}
+{{ $accessMode := .Values.persistence.accessMode }}
+{{ $storageClass := .Values.persistence.storageClass }}
+{{ $psize := .Values.persistence.size }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "minio.fullname" . }}-svc
+  labels:
+    app: {{ template "minio.name" . }}
+    chart: {{ template "minio.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  publishNotReadyAddresses: true
+  clusterIP: None
+  ports:
+    - name: {{ $scheme }}
+      port: {{ .Values.service.port }}
+      protocol: TCP
+      targetPort: {{ .Values.minioAPIPort }}
+  selector:
+    app: {{ template "minio.name" . }}
+    release: {{ .Release.Name }}
+---
+apiVersion: {{ template "minio.statefulset.apiVersion" . }}
+kind: StatefulSet
 metadata:
   name: {{ template "minio.fullname" . }}
   labels:
@@ -17,14 +48,11 @@ metadata:
   annotations: {{- toYaml .Values.additionalAnnotations | nindent 4 }}
   {{- end }}
 spec:
-  strategy:
-    type: {{ .Values.deploymentUpdate.type }}
-    {{- if eq .Values.deploymentUpdate.type "RollingUpdate" }}
-    rollingUpdate:
-      maxSurge: {{ .Values.deploymentUpdate.maxSurge }}
-      maxUnavailable: {{ .Values.deploymentUpdate.maxUnavailable }}
-    {{- end }}
-  replicas: 1
+  updateStrategy:
+    type: {{ .Values.statefulSetUpdate.updateStrategy }}
+  podManagementPolicy: "Parallel"
+  serviceName: {{ template "minio.fullname" . }}-svc
+  replicas: {{ $replicas }}
   selector:
     matchLabels:
       app: {{ template "minio.name" . }}
@@ -44,7 +72,7 @@ spec:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         {{- end }}
         {{- if .Values.podAnnotations }}
-          {{- toYaml .Values.podAnnotations | trimSuffix "\n" | nindent 8 }}
+          {{- toYaml .Values.podAnnotations | nindent 8 }}
         {{- end }}
     spec:
       {{- if .Values.priorityClassName }}
@@ -55,28 +83,38 @@ spec:
       {{- end }}
       {{- if and .Values.securityContext.enabled .Values.persistence.enabled }}
       securityContext:
-        {{ omit .Values.securityContext "enabled" | toYaml | nindent 8 }}
+        {{- omit .Values.securityContext "enabled" | toYaml | nindent 8 }}
       {{- end }}
-      {{ if .Values.serviceAccount.create }}
+      {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- end }}
       containers:
         - name: {{ .Chart.Name }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command:
-            - "/bin/sh"
-            - "-ce"
-            - "/usr/bin/docker-entrypoint.sh minio server {{ $bucketRoot }} -S {{ .Values.certsPath }} --address :{{ .Values.minioAPIPort }} --console-address :{{ .Values.minioConsolePort }} {{- template "minio.extraArgs" . }}"
+          command: [
+            "/bin/sh",
+            "-ce",
+            "/usr/bin/docker-entrypoint.sh granary server {{- range $i := until $poolCount }}{{ $factor := mul $i $nodeCount }}{{ $endIndex := add $factor $nodeCount }}{{ $beginIndex := mul $i $nodeCount }} {{ $scheme }}://{{ template `minio.fullname` $ }}-{{ `{` }}{{ $beginIndex }}...{{ sub $endIndex 1 }}{{ `}`}}.{{ template `minio.fullname` $ }}-svc.{{ $.Release.Namespace }}.svc{{if (gt $drivesPerNode 1)}}{{ $bucketRoot }}-{{ `{` }}0...{{ sub $drivesPerNode 1 }}{{ `}` }}{{ else }}{{ $bucketRoot }}{{end }}{{- end }} -S {{ .Values.certsPath }} --address :{{ .Values.minioAPIPort }} --console-address :{{ .Values.minioConsolePort }} {{- template `minio.extraArgs` . }}"
+          ]
           volumeMounts:
-            - name: minio-user
-              mountPath: "/tmp/credentials"
-              readOnly: true
-            - name: export
-              mountPath: {{ .Values.mountPath }}
-              {{- if and .Values.persistence.enabled .Values.persistence.subPath }}
-              subPath: "{{ .Values.persistence.subPath }}"
+            {{- if $penabled }}
+            {{- if (gt $drivesPerNode 1) }}
+            {{- range $i := until $drivesPerNode }}
+            - name: export-{{ $i }}
+              mountPath: {{ $mountPath }}-{{ $i }}
+              {{- if and $penabled $subPath }}
+              subPath: {{ $subPath }}
               {{- end }}
+            {{- end }}
+            {{- else }}
+            - name: export
+              mountPath: {{ $mountPath }}
+              {{- if and $penabled $subPath }}
+              subPath: {{ $subPath }}
+              {{- end }}
+            {{- end }}
+            {{- end }}
             {{- if .Values.extraSecret }}
             - name: extra-secret
               mountPath: "/tmp/minio-config-env"
@@ -143,26 +181,6 @@ spec:
             - name: MINIO_IDENTITY_OPENID_DISPLAY_NAME
               value: {{ .Values.oidc.displayName }}
             {{- end }}
-            {{- if .Values.etcd.endpoints }}
-            - name: MINIO_ETCD_ENDPOINTS
-              value: {{ join "," .Values.etcd.endpoints | quote }}
-            {{- if .Values.etcd.clientCert }}
-            - name: MINIO_ETCD_CLIENT_CERT
-              value: "/tmp/credentials/etcd_client_cert.pem"
-            {{- end }}
-            {{- if .Values.etcd.clientCertKey }}
-            - name: MINIO_ETCD_CLIENT_CERT_KEY
-              value: "/tmp/credentials/etcd_client_cert_key.pem"
-            {{- end }}
-            {{- if .Values.etcd.pathPrefix }}
-            - name: MINIO_ETCD_PATH_PREFIX
-              value: {{ .Values.etcd.pathPrefix }}
-            {{- end }}
-            {{- if .Values.etcd.corednsPathPrefix }}
-            - name: MINIO_ETCD_COREDNS_PATH
-              value: {{ .Values.etcd.corednsPathPrefix }}
-            {{- end }}
-            {{- end }}
             {{- range $key, $val := .Values.environment }}
             - name: {{ $key }}
               value: {{ tpl $val $ | quote }}
@@ -190,24 +208,60 @@ spec:
       {{- with .Values.tolerations }}
       tolerations: {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if and (gt $replicas 1) (ge .Capabilities.KubeVersion.Major "1") (ge .Capabilities.KubeVersion.Minor "19") }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints: {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- end }}
       volumes:
-        - name: export
-          {{- if .Values.persistence.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ .Values.persistence.existingClaim | default (include "minio.fullname" .) }}
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
+        - name: minio-user
+          secret:
+            secretName: {{ template "minio.secretName" . }}
         {{- if .Values.extraSecret }}
         - name: extra-secret
           secret:
             secretName: {{ .Values.extraSecret }}
         {{- end }}
-        - name: minio-user
-          secret:
-            secretName: {{ template "minio.secretName" . }}
         {{- include "minio.tlsKeysVolume" . | indent 8 }}
         {{- if .Values.extraVolumes }}
-          {{ toYaml .Values.extraVolumes | nindent 8 }}
+          {{- toYaml .Values.extraVolumes | nindent 8 }}
         {{- end }}
+  {{- if .Values.persistence.enabled }}
+  volumeClaimTemplates:
+    {{- if gt $drivesPerNode 1 }}
+    {{- range $diskId := until $drivesPerNode}}
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: export-{{ $diskId }}
+        {{- if $.Values.persistence.annotations }}
+        annotations: {{- toYaml $.Values.persistence.annotations | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes: [ {{ $accessMode | quote }} ]
+        {{- if $storageClass }}
+        storageClassName: {{ $storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $psize }}
+    {{- end }}
+    {{- else }}
+    - apiVersion: v1
+      kind: PersistentVolumeClaim
+      metadata:
+        name: export
+        {{- if $.Values.persistence.annotations }}
+        annotations: {{- toYaml $.Values.persistence.annotations | nindent 10 }}
+        {{- end }}
+      spec:
+        accessModes: [ {{ $accessMode | quote }} ]
+        {{- if $storageClass }}
+        storageClassName: {{ $storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ $psize }}
+    {{- end }}
+  {{- end }}
 {{- end }}

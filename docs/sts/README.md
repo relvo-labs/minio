@@ -55,7 +55,7 @@ export MINIO_ROOT_USER=minio
 export MINIO_ROOT_PASSWORD=minio123
 export MINIO_IDENTITY_OPENID_CONFIG_URL=http://localhost:8080/auth/realms/demo/.well-known/openid-configuration
 export MINIO_IDENTITY_OPENID_CLIENT_ID="843351d4-1080-11ea-aa20-271ecba3924a"
-minio server /mnt/data
+granary server /mnt/data
 ```
 
 #### Casdoor
@@ -65,7 +65,7 @@ export MINIO_ROOT_USER=minio
 export MINIO_ROOT_PASSWORD=minio123
 export MINIO_IDENTITY_OPENID_CONFIG_URL=http://CASDOOR_ENDPOINT/.well-known/openid-configuration
 export MINIO_IDENTITY_OPENID_CLIENT_ID="843351d4-1080-11ea-aa20-271ecba3924a"
-minio server /mnt/data
+granary server /mnt/data
 ```
 
 ### Using WebIdentiy API

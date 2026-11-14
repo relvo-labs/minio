@@ -10,18 +10,19 @@ fullnameOverride: ""
 ##
 clusterDomain: cluster.local
 
-## Set default image, imageTag, and imagePullPolicy. mode is used to indicate the
-##
+## The Granary image is not yet published. "unpublished" is a placeholder,
+## not a release tag. Build this checkout and override repository/tag with an
+## image available to your cluster before installing.
 image:
-  repository: quay.io/minio/minio
-  tag: RELEASE.2024-12-18T13-15-44Z
+  repository: ghcr.io/relvo-labs/granary
+  tag: unpublished
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
 # - name: "image-pull-secret"
 
-## Set default image, imageTag, and imagePullPolicy for the `mc` (the minio
-## client used to create a default bucket).
+## Separate upstream MinIO client image (`mc`), used by provisioning jobs.
+## This is not the Granary server image.
 ##
 mcImage:
   repository: quay.io/minio/mc

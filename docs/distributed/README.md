@@ -70,7 +70,7 @@ Example 1: Start distributed MinIO instance on n nodes with m drives each mounte
 ```sh
 export MINIO_ROOT_USER=<ACCESS_KEY>
 export MINIO_ROOT_PASSWORD=<SECRET_KEY>
-minio server http://host{1...n}/export{1...m}
+granary server http://host{1...n}/export{1...m}
 ```
 
 > **NOTE:** In above example `n` and `m` represent positive integers, _do not copy paste and expect it work make the changes according to local deployment and setup_.
@@ -83,13 +83,13 @@ MinIO supports expanding distributed erasure coded clusters by specifying new se
 ```sh
 export MINIO_ROOT_USER=<ACCESS_KEY>
 export MINIO_ROOT_PASSWORD=<SECRET_KEY>
-minio server http://host{1...n}/export{1...m} http://host{o...z}/export{1...m}
+granary server http://host{1...n}/export{1...m} http://host{o...z}/export{1...m}
 ```
 
 For example:
 
 ```
-minio server http://host{1...4}/export{1...16} http://host{5...12}/export{1...16}
+granary server http://host{1...4}/export{1...16} http://host{5...12}/export{1...16}
 ```
 
 Now the server has expanded total storage by _(newly_added_servers\*m)_ more drives, taking the total count to _(existing_servers\*m)+(newly_added_servers\*m)_ drives. New object upload requests automatically start using the least used cluster. This expansion strategy works endlessly, so you can perpetually expand your clusters as needed.  When you restart, it is immediate and non-disruptive to the applications. Each group of servers in the command-line is called a pool. There are 2 server pools in this example. New objects are placed in server pools in proportion to the amount of free space in each pool. Within each pool, the location of the erasure-set of drives is determined based on a deterministic hashing algorithm.

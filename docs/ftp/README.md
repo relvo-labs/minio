@@ -61,7 +61,7 @@ MinIO supports following FTP/SFTP based protocols to access and manage data.
 Start MinIO in a distributed setup, with 'ftp/sftp' enabled.
 
 ```
-minio server http://server{1...4}/disk{1...4}
+granary server http://server{1...4}/disk{1...4}
    --ftp="address=:8021" --ftp="passive-port-range=30000-40000" \
    --sftp="address=:8022" --sftp="ssh-private-key=/home/miniouser/.ssh/id_rsa"
 ...

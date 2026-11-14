@@ -60,7 +60,7 @@ export MINIO_POLICY_PLUGIN_URL=http://localhost:8181/v1/data/httpapi/authz/allow
 export MINIO_CI_CD=1
 export MINIO_ROOT_USER=minio
 export MINIO_ROOT_PASSWORD=minio123
-minio server /mnt/data
+granary server /mnt/data
 ```
 
 ### 5. Test with a regular IAM user

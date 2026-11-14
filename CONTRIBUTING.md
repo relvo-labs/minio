@@ -23,6 +23,12 @@ check, follow the [README](README.md#build-and-try-locally). The module path
 remains `github.com/minio/minio`; installing that path at `@latest` fetches
 upstream rather than this fork.
 
+`make ci-build` produces `./granary`; `make install` copies it to
+`$(go env GOPATH)/bin/granary`. Verify with `./granary --version` and
+`./granary --help`. No `minio` compatibility executable is installed.
+The root Dockerfile builds the same source; Granary images are not yet published.
+Self-update is disabled; rebuild or install a qualified Granary release manually.
+
 ### Create your feature branch
 
 Before making code changes, make sure you create a separate branch for these changes

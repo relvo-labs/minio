@@ -19,7 +19,7 @@ Example: Limit a MinIO cluster to accept at max 1600 simultaneous S3 API request
 export MINIO_API_REQUESTS_MAX=1600
 export MINIO_ROOT_USER=your-access-key
 export MINIO_ROOT_PASSWORD=your-secret-key
-minio server http://server{1...8}/mnt/hdd{1...16}
+granary server http://server{1...8}/mnt/hdd{1...16}
 ```
 
 or

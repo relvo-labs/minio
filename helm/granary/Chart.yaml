@@ -1,0 +1,16 @@
+apiVersion: v1
+description: Granary object storage, an unofficial fork derived from MinIO
+name: granary
+version: 0.1.0
+appVersion: unpublished
+keywords:
+  - granary
+  - storage
+  - object-storage
+  - s3
+home: https://github.com/relvo-labs/granary
+sources:
+  - https://github.com/relvo-labs/granary
+maintainers:
+  - name: relvo-labs
+    url: https://github.com/relvo-labs/granary

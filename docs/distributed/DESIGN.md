@@ -6,12 +6,12 @@ This document explains the design, architecture and advanced use cases of the Mi
 
 ```
 NAME:
-  minio server - start object storage server
+  granary server - start object storage server
 
 USAGE:
-  minio server [FLAGS] DIR1 [DIR2..]
-  minio server [FLAGS] DIR{1...64}
-  minio server [FLAGS] DIR{1...64} DIR{65...128}
+  granary server [FLAGS] DIR1 [DIR2..]
+  granary server [FLAGS] DIR{1...64}
+  granary server [FLAGS] DIR{1...64} DIR{65...128}
 
 DIR:
   DIR points to a directory on a filesystem. When you want to combine
@@ -26,13 +26,13 @@ DIR:
 Standalone erasure coded configuration with 4 sets with 16 drives each.
 
 ```
-minio server dir{1...64}
+granary server dir{1...64}
 ```
 
 Distributed erasure coded configuration with 64 sets with 16 drives each.
 
 ```
-minio server http://host{1...16}/export{1...64}
+granary server http://host{1...16}/export{1...64}
 ```
 
 ## Architecture
@@ -54,7 +54,7 @@ Expansion of ellipses and choice of erasure sets based on this expansion is an a
 - In this algorithm, we also make sure that we spread the drives out evenly. MinIO server expands ellipses passed as arguments. Here is a sample expansion to demonstrate the process.
 
 ```
-minio server http://host{1...2}/export{1...8}
+granary server http://host{1...2}/export{1...8}
 ```
 
 Expected expansion
@@ -105,7 +105,7 @@ Input for the key is the object name specified in `PutObject()`, returns a uniqu
 ### There are no limits on how many server pools can be combined
 
 ```
-minio server http://host{1...32}/export{1...32} http://host{1...12}/export{1...12}
+granary server http://host{1...32}/export{1...32} http://host{1...12}/export{1...12}
 ```
 
 In above example there are two server pools
@@ -144,23 +144,23 @@ func getAvailablePoolIdx(ctx context.Context) int {
 Standalone erasure coded configuration with 4 sets with 16 drives each, which spawns drives across controllers.
 
 ```
-minio server /mnt/controller{1...4}/data{1...16}
+granary server /mnt/controller{1...4}/data{1...16}
 ```
 
 Standalone erasure coded configuration with 16 sets, 16 drives per set, across mounts and controllers.
 
 ```
-minio server /mnt{1...4}/controller{1...4}/data{1...16}
+granary server /mnt{1...4}/controller{1...4}/data{1...16}
 ```
 
 Distributed erasure coded configuration with 2 sets, 16 drives per set across hosts.
 
 ```
-minio server http://host{1...32}/disk1
+granary server http://host{1...32}/disk1
 ```
 
 Distributed erasure coded configuration with rack level redundancy 32 sets in total, 16 drives per set.
 
 ```
-minio server http://rack{1...4}-host{1...8}.example.net/export{1...16}
+granary server http://rack{1...4}-host{1...8}.example.net/export{1...16}
 ```

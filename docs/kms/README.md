@@ -30,7 +30,7 @@ export MINIO_KMS_KES_KEY_NAME=my-minio-key
 ```sh
 export MINIO_ROOT_USER=minio
 export MINIO_ROOT_PASSWORD=minio123
-minio server ~/export
+granary server ~/export
 ```
 
 > The KES instance at `https://play.min.io:7373` is meant to experiment and provides a way to get started quickly.

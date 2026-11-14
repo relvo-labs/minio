@@ -4,11 +4,11 @@ trap 'cleanup $LINENO' ERR
 
 # shellcheck disable=SC2120
 cleanup() {
-	MINIO_VERSION=dev /tmp/gopath/bin/docker-compose \
+	MINIO_VERSION=dev MINIO_IMAGE_REPOSITORY=granary-local-upgrade /tmp/gopath/bin/docker-compose \
 		-f "buildscripts/upgrade-tests/compose.yml" \
 		down || true
 
-	MINIO_VERSION=dev /tmp/gopath/bin/docker-compose \
+	MINIO_VERSION=dev MINIO_IMAGE_REPOSITORY=granary-local-upgrade /tmp/gopath/bin/docker-compose \
 		-f "buildscripts/upgrade-tests/compose.yml" \
 		rm || true
 
@@ -76,7 +76,7 @@ __init__() {
 
 	cleanup
 
-	TAG=minio/minio:dev make docker
+	TAG=granary-local-upgrade:dev make docker
 
 	MINIO_VERSION=RELEASE.2019-12-19T22-52-26Z docker-compose \
 		-f "buildscripts/upgrade-tests/compose.yml" \
@@ -85,25 +85,25 @@ __init__() {
 	add_alias
 
 	mc mb minio/minio-test/
-	mc cp ./minio minio/minio-test/to-read/
+	mc cp ./granary minio/minio-test/to-read/
 	mc cp /etc/hosts minio/minio-test/to-read/hosts
 	mc anonymous set download minio/minio-test
 
-	verify_checksum_mc ./minio minio/minio-test/to-read/minio
+	verify_checksum_mc ./granary minio/minio-test/to-read/granary
 
 	curl -s http://127.0.0.1:9000/minio-test/to-read/hosts | sha256sum
 
-	MINIO_VERSION=dev /tmp/gopath/bin/docker-compose -f "buildscripts/upgrade-tests/compose.yml" stop
+	MINIO_VERSION=dev MINIO_IMAGE_REPOSITORY=granary-local-upgrade /tmp/gopath/bin/docker-compose -f "buildscripts/upgrade-tests/compose.yml" stop
 }
 
 main() {
-	MINIO_VERSION=dev /tmp/gopath/bin/docker-compose -f "buildscripts/upgrade-tests/compose.yml" up -d --build
+	MINIO_VERSION=dev MINIO_IMAGE_REPOSITORY=granary-local-upgrade /tmp/gopath/bin/docker-compose -f "buildscripts/upgrade-tests/compose.yml" up -d --build
 
 	add_alias
 
 	verify_checksum_after_heal minio/minio-test http://127.0.0.1:9000/minio-test/to-read/hosts
 
-	verify_checksum_mc ./minio minio/minio-test/to-read/minio
+	verify_checksum_mc ./granary minio/minio-test/to-read/granary
 
 	verify_checksum_mc /etc/hosts minio/minio-test/to-read/hosts
 

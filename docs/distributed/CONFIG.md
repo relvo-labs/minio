@@ -9,7 +9,7 @@ MinIO server configuration file allows users to provide topology that allows for
 ### Usage
 
 ```
-minio server --config config.yaml
+granary server --config config.yaml
 ```
 
 Lets you start MinIO server with all inputs to start MinIO server provided via this configuration file, once the configuration file is provided all other pre-existing values on disk for configuration are overridden by the new values set in this configuration file.

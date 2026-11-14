@@ -1,6 +1,17 @@
-# MinIO Docker Quickstart Guide [![Slack](https://slack.min.io/slack?type=svg)](https://slack.min.io) [![Docker Pulls](https://img.shields.io/docker/pulls/minio/minio.svg?maxAge=604800)](https://hub.docker.com/r/minio/minio/)
+# Granary Docker quickstart
 
 See our web documentation on [Deploying MinIO in Standalone Mode](Deploy Standalone MinIO in a Container) for a more structured tutorial on deploying MinIO in a container.
+
+Granary is an unofficial fork derived from MinIO. The Granary image is not yet
+published. From a checkout of this fork, build the local image used below:
+
+```sh
+docker build -t granary-local:dev .
+```
+
+Self-update is disabled; rebuild and replace the image manually. For Swarm,
+make your built image available to every node before creating a service.
+The remaining upstream prose is inherited guidance, not production qualification.
 
 ## Prerequisites
 
@@ -18,7 +29,7 @@ docker run \
   -p 9001:9001 \
   -e "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
   -e "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
-  quay.io/minio/minio server /data --console-address ":9001"
+  granary-local:dev server /data --console-address ":9001"
 ```
 
 To create a MinIO container with persistent storage, you need to map local persistent directories from the host OS to virtual config. To do this, run the below commands
@@ -35,7 +46,7 @@ docker run \
   -v ~/minio/data:/data \
   -e "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
   -e "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
-  quay.io/minio/minio server /data --console-address ":9001"
+  granary-local:dev server /data --console-address ":9001"
 ```
 
 The command creates a new local directory `~/minio/data` in your user home directory. It then starts the MinIO container with the `-v` argument to map the local path (`~/minio/data`) to the specified virtual container directory (`/data`). When MinIO writes data to `/data`, that data is actually written to the local path `~/minio/data` where it can persist between container restarts.
@@ -50,7 +61,7 @@ docker run \
   -v D:\data:/data \
   -e "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
   -e "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
-  quay.io/minio/minio server /data --console-address ":9001"
+  granary-local:dev server /data --console-address ":9001"
 ```
 
 ## Run Distributed MinIO on Containers
@@ -75,7 +86,7 @@ docker run \
   -e "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
   -e "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
   -v /mnt/data:/data \
-  quay.io/minio/minio server /data --console-address ":9001"
+  granary-local:dev server /data --console-address ":9001"
 ```
 
 #### Windows (custom access and secret keys)
@@ -88,7 +99,7 @@ docker run \
   -e "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
   -e "MINIO_ROOT_PASSWORD=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" \
   -v D:\data:/data \
-  quay.io/minio/minio server /data --console-address ":9001"
+  granary-local:dev server /data --console-address ":9001"
 ```
 
 ### Run MinIO Docker as a regular user
@@ -111,7 +122,7 @@ docker run \
   -e "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
   -e "MINIO_ROOT_PASSWORD=wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY" \
   -v ${HOME}/data:/data \
-  quay.io/minio/minio server /data --console-address ":9001"
+  granary-local:dev server /data --console-address ":9001"
 ```
 
 #### Windows (regular user)
@@ -129,7 +140,7 @@ docker run \
   -e "MINIO_ROOT_USER=AKIAIOSFODNN7EXAMPLE" \
   -e "MINIO_ROOT_PASSWORD=wJalrXUtnFEMIK7MDENGbPxRfiCYEXAMPLEKEY" \
   -v D:\data:/data \
-  quay.io/minio/minio server /data --console-address ":9001"
+  granary-local:dev server /data --console-address ":9001"
 ```
 
 ### MinIO Custom Access and Secret Keys using Docker secrets
@@ -144,7 +155,7 @@ echo "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" | docker secret create secret_ke
 Create a MinIO service using `docker service` to read from Docker secrets.
 
 ```
-docker service create --name="minio-service" --secret="access_key" --secret="secret_key" quay.io/minio/minio server /data
+docker service create --name="minio-service" --secret="access_key" --secret="secret_key" granary-local:dev server /data
 ```
 
 Read more about `docker service` [here](https://docs.docker.com/engine/swarm/how-swarm-mode-works/services/)
@@ -159,7 +170,7 @@ docker service create --name="minio-service" \
   --secret="my_secret_key" \
   --env="MINIO_ROOT_USER_FILE=my_access_key" \
   --env="MINIO_ROOT_PASSWORD_FILE=my_secret_key" \
-  quay.io/minio/minio server /data
+  granary-local:dev server /data
 ```
 
 `MINIO_ROOT_USER_FILE` and `MINIO_ROOT_PASSWORD_FILE` also support custom absolute paths, in case Docker secrets are mounted to custom locations or other tools are used to mount secrets into the container. For example, HashiCorp Vault injects secrets to `/vault/secrets`. With the custom names above, set the environment variables to

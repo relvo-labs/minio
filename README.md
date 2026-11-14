@@ -61,12 +61,12 @@ not contain them. Record the full commit ID with your local results.
 go version
 mkdir -p .bin
 CGO_ENABLED=0 GOMAXPROCS=2 GOGC=50 GOMEMLIMIT=3GiB GOTOOLCHAIN=local \
-  go build -o .bin/minio .
+  go build -o .bin/granary .
 ```
 
 This creates a local executable, not a published fork artifact. The binary is
-still named `minio` and the Go module path stays `github.com/minio/minio` until
-later rename phases ([#21](https://github.com/relvo-labs/granary/issues/21)).
+named `granary`; the Go module path stays `github.com/minio/minio` until
+the final rename phase ([#21](https://github.com/relvo-labs/granary/issues/21)).
 **`go install github.com/minio/minio@latest` fetches upstream, not this fork.**
 
 ### 2. Start an isolated local server
@@ -104,7 +104,7 @@ root_password=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
 env -i PATH="$PATH" HOME="$demo/home" \
   MINIO_ROOT_USER="$root_user" MINIO_ROOT_PASSWORD="$root_password" \
   MINIO_BROWSER=off GOMAXPROCS=2 GOGC=50 GOMEMLIMIT=3GiB \
-  .bin/minio --quiet --config-dir "$demo/config" server \
+  .bin/granary --quiet --config-dir "$demo/config" server \
   --address 127.0.0.1:19000 "$demo/data"
 ```
 
@@ -147,7 +147,7 @@ unset demo
 ```
 
 This deletes the example's data and configuration. Keep any data you need
-elsewhere before cleanup. The checkout and `.bin/minio` remain local files;
+elsewhere before cleanup. The checkout and `.bin/granary` remain local files;
 you can remove the disposable checkout separately after finishing evaluation.
 
 ## Find your next step
@@ -163,13 +163,26 @@ you can remove the disposable checkout separately after finishing evaluation.
 
 ## Inherited references
 
-The [docs tree](docs), [Helm chart](helm/minio) and Dockerfiles contain inherited
-upstream guidance, URLs and image defaults. They are not qualified fork
-deployment instructions. In particular, the root `Dockerfile` starts from
-`minio/minio:latest`; it does not build this checkout's server source.
-Upstream `dl.min.io` downloads, `minio/minio` or `quay.io/minio/*` images,
-`charts.min.io`, enterprise/AIStor documentation, sales links and Slack are
-upstream references, not this fork's distribution or support channels.
+The root [Dockerfile](Dockerfile) builds `granary` from this checkout with Go
+1.27.4. Build and try a local image with:
+
+```sh
+docker build -t granary-local:dev .
+docker run --rm granary-local:dev --version
+```
+
+The [Helm chart](helm/granary) defaults to
+`ghcr.io/relvo-labs/granary:unpublished`. **The Granary image is not yet
+published**; override the placeholder with an image you built and made
+available to your cluster. No binary or image release is advertised yet.
+Self-update and background update checks are disabled; install a Granary
+release manually when one is available, or rebuild from the selected source.
+No `minio` compatibility executable is installed.
+
+The [docs tree](docs) still contains inherited upstream guidance. Historical
+test images, upstream client downloads, enterprise/AIStor documentation, sales
+links and Slack are upstream references, not this fork's distribution or
+support channels. They are not qualified fork deployment instructions.
 The upstream [documentation project](https://github.com/minio/docs) is also
 historical context; check applicability to the exact source you build.
 

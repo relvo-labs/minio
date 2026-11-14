@@ -178,14 +178,68 @@ Make targets fail explicitly. No publication is part of these local checks.
 - **govulncheck** reports one module-level advisory (GO-2026-5932,
   `golang.org/x/crypto/openpgp`), which is not imported. No imported-package or
   reachable-symbol findings. Nothing is suppressed.
-- **Heavy workflows were not executed.** They use public upstream images
-  (`quay.io/minio/*`, `docker.io/minio/mint:edge`, etcd, nginx), the public
-  `minio/minio-iam-testing` repository and public release downloads. `mint.yml`
-  now runs on a hosted runner with these job-local prerequisites:
-  - a `docker-compose` shim
-  - `/etc/hosts` entries for the nginx endpoints
-  - a locally built `s3-check-md5`
-  - an image that overlays this checkout's `granary` binary and entrypoint on the tag-pinned
-    `RELEASE.2023-08-29T23-07-35Z` image
+- **Heavy qualification remains partial.** Full hosted integration workflows,
+  cross-compilation and independent review remain pending. The image restoration
+  and disabled historical scenarios are described below.
 
-  Cross-compilation, hosted runs and an independent review are also pending.
+## Integration images and unavailable baselines (#30)
+
+Granary is an unofficial fork derived from MinIO. Integration tests build the
+server under test from this checkout; they do not pull upstream MinIO server
+images. `mint.yml` runs the root multi-stage Dockerfile directly:
+
+```sh
+SHA_SHORT=$(git rev-parse --short HEAD)
+docker build -t "granary-ci:${SHA_SHORT}" -f Dockerfile .
+docker run --rm "granary-ci:${SHA_SHORT}" --version
+```
+
+The root Dockerfile compiles Granary with Go 1.27.4 using the public Go and
+Debian base images. The local `granary-ci` name has no registry prefix and is
+never published. The former staged context / `.dockerignore` workaround and
+upstream-image overlay in `mint.yml` are removed. The root `.dockerignore`
+still excludes generated binaries and other unsuitable source-build inputs.
+
+All four `mint/*.yaml` modes use that local tag with `pull_policy: never`.
+Their readiness checks request `/minio/health/ready` through bash TCP sockets;
+the source-built image does not bundle `mc` or curl. `run-mint.sh` waits for
+healthy servers before starting the suite. It defaults to full Mint coverage;
+for a reduced local check, use `MINT_MODE=core MINT_TESTS=aws-sdk-go` before
+calling `.github/workflows/run-mint.sh erasure minio minio123 "$SHA_SHORT"`
+from the repository root. Test credentials here are public fixtures only.
+Each run uses `granary-mint-${SHA_SHORT}` as its Compose project and removes
+its own containers, network and volumes on exit. Workflow cleanup also handles
+interrupted runs and removes the local server image. No global prune is used
+in the active Mint path.
+
+The upstream **Mint S3 conformance client** remains in use, pinned to
+`quay.io/minio/mint@sha256:f76b1148ebbab2c536d20599317b5a068f6da26b9b325f27caab10800f805730`.
+Digest source: anonymous `docker buildx imagetools inspect quay.io/minio/mint:edge`
+on 2026-11-14 (Docker v2 manifest, linux/amd64). This is the test client, not
+a server baseline. This pin is separate from the immutable Actions/tool policy.
+The nginx proxy and IAM auxiliary `quay.io/minio/openldap` and
+`quay.io/minio/dex` images are unchanged. Helm's upstream `mc` client image
+is outside #30 and remains tracked separately.
+
+Anonymous registry probes on 2026-11-14 found upstream server images
+unavailable (Quay returned 401 for upstream server tags; Docker Hub returned
+404 for `minio/minio:latest`). These historical scenarios are explicitly
+skipped with #30 messages in workflows; direct script and Make entrypoints
+fail before downloads, builds, Docker operations or cleanup:
+
+| Scenario | Required historical baseline | Entry point |
+| --- | --- | --- |
+| Multipart migration / healing after upgrade | `RELEASE.2023-08-29T23-07-35Z` image | `multipart/migrate.sh` in `mint.yml` |
+| Storage upgrade / checksum regression | `RELEASE.2019-12-19T22-52-26Z` image | `minio-upgrade.sh`, `make test-upgrade`, `upgrade-ci-cd.yaml` |
+| LDAP IAM export from old server / import into Granary | `RELEASE.2024-03-26T22-10-45Z` server binary baseline | `minio-iam-ldap-upgrade-import-test.sh`, `make test-iam-ldap-upgrade-import`, `iam-integrations.yaml` |
+
+The regression logic is retained behind fail-fast guards for future restoration
+with qualified historical artifacts. Substituting the current checkout for the
+old server would invalidate the upgrade test. The multipart and upgrade
+Compose files now accept only local `granary-ci` tags and never pull a server;
+they remain usable as source-built fixtures, but do not provide historical
+upgrade coverage. The dormant historical release/download references in the
+guarded scripts describe the required baselines, not runnable dependencies.
+The independent source-based multipart quorum, IAM, replication and Mint
+scenarios remain enabled; the pre-existing Mint resiliency workflow step
+remains commented out because PUT deadlines are unresolved.

@@ -86,7 +86,7 @@ test-versioning: install-race
 test-configfile: install-race
 	@env bash $(PWD)/docs/distributed/distributed-from-config-file.sh
 
-test-upgrade: install-race
+test-upgrade: ## disabled upstream baseline (#30); fail before building
 	@echo "Running minio upgrade tests"
 	@(env bash $(PWD)/buildscripts/minio-upgrade.sh)
 
@@ -100,7 +100,7 @@ test-iam: install-race ## verify IAM (external IDP, etcd backends)
 	@echo "Running tests for IAM (external IDP, etcd backends) with -race"
 	@MINIO_API_REQUESTS_MAX=10000 GORACE=history_size=7 CGO_ENABLED=1 go test -timeout 15m -race -tags kqueue,dev -v -run TestIAM* ./cmd
 
-test-iam-ldap-upgrade-import: install-race ## verify IAM (external LDAP IDP)
+test-iam-ldap-upgrade-import: ## disabled upstream baseline (#30); fail before building
 	@echo "Running upgrade tests for IAM (LDAP backend)"
 	@env bash $(PWD)/buildscripts/minio-iam-ldap-upgrade-import-test.sh
 

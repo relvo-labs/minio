@@ -2,7 +2,9 @@ version: '3.7'
 
 # Settings and configurations that are common for all containers
 x-minio-common: &minio-common
-  image: quay.io/minio/minio:${RELEASE}
+  # Current-source fixture only; historical migration is disabled by #30.
+  image: granary-ci:${RELEASE:?Set RELEASE to the locally built checkout tag}
+  pull_policy: never
   command: server http://site2-minio{1...4}/data{1...2}
   environment:
     - MINIO_PROMETHEUS_AUTH_TYPE=public

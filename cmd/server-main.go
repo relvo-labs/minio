@@ -851,16 +851,6 @@ func serverMain(ctx *cli.Context) {
 		getCert = globalTLSCerts.GetCertificate
 	}
 
-	// Check for updates in non-blocking manner.
-	go func() {
-		if !globalServerCtxt.Quiet && !globalInplaceUpdateDisabled {
-			// Granary keeps this startup hook without an automatic update channel.
-			bootstrapTrace("checkUpdate", func() {
-				checkUpdate(getMinioMode())
-			})
-		}
-	}()
-
 	// Set system resources to maximum.
 	bootstrapTrace("setMaxResources", func() {
 		_ = setMaxResources(globalServerCtxt)

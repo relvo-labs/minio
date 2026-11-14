@@ -18,15 +18,13 @@
 package cmd
 
 import (
-	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"runtime"
+	"strconv"
 	"strings"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -46,64 +44,6 @@ func TestMinioVersionToReleaseTime(t *testing.T) {
 			t.Errorf("Test %d: Expected %v but got %v",
 				i+1, testCase.isOfficial, err == nil)
 		}
-	}
-}
-
-func TestReleaseTagToNFromTimeConversion(t *testing.T) {
-	utcLoc, _ := time.LoadLocation("")
-	testCases := []struct {
-		t      time.Time
-		tag    string
-		errStr string
-	}{
-		{
-			time.Date(2017, time.September, 29, 19, 16, 56, 0, utcLoc),
-			"RELEASE.2017-09-29T19-16-56Z", "",
-		},
-		{
-			time.Date(2017, time.August, 5, 0, 0, 53, 0, utcLoc),
-			"RELEASE.2017-08-05T00-00-53Z", "",
-		},
-		{
-			time.Now().UTC(), "2017-09-29T19:16:56Z",
-			"2017-09-29T19:16:56Z is not a valid release tag",
-		},
-		{
-			time.Now().UTC(), "DEVELOPMENT.GOGET",
-			"DEVELOPMENT.GOGET is not a valid release tag",
-		},
-		{
-			time.Date(2017, time.August, 5, 0, 0, 53, 0, utcLoc),
-			"RELEASE.2017-08-05T00-00-53Z.hotfix", "",
-		},
-		{
-			time.Date(2017, time.August, 5, 0, 0, 53, 0, utcLoc),
-			"RELEASE.2017-08-05T00-00-53Z.hotfix.aaaa", "",
-		},
-	}
-	for i, testCase := range testCases {
-		if testCase.errStr != "" {
-			got := releaseTimeToReleaseTag(testCase.t)
-			if got != testCase.tag && testCase.errStr == "" {
-				t.Errorf("Test %d: Expected %v but got %v", i+1, testCase.tag, got)
-			}
-		}
-		tagTime, err := releaseTagToReleaseTime(testCase.tag)
-		if err != nil && err.Error() != testCase.errStr {
-			t.Errorf("Test %d: Expected %v but got %v", i+1, testCase.errStr, err.Error())
-		}
-		if err == nil && !tagTime.Equal(testCase.t) {
-			t.Errorf("Test %d: Expected %v but got %v", i+1, testCase.t, tagTime)
-		}
-	}
-}
-
-func TestDownloadURL(t *testing.T) {
-	for _, name := range []string{"KUBERNETES_SERVICE_HOST", "MESOS_CONTAINER_NAME"} {
-		t.Setenv(name, "test")
-	}
-	if got := getDownloadURL(releaseTimeToReleaseTag(UTCNow())); got != "" {
-		t.Fatalf("disabled update channel advertised %q", got)
 	}
 }
 
@@ -227,85 +167,35 @@ pod-template-hash="818089471"`)
 	}
 }
 
-func TestDownloadReleaseData(t *testing.T) {
-	var requests atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requests.Add(1)
-		t.Error("self-update made an HTTP request")
-	}))
-	defer server.Close()
-	u, err := url.Parse(server.URL)
-	if err != nil {
-		t.Fatal(err)
+// The peer self-update routes stay registered so that a peer running an older
+// binary gets a clean error; they still authenticate and never read the body.
+func TestPeerSelfUpdateHandlersDisabled(t *testing.T) {
+	server := &peerRESTServer{}
+	handlers := map[string]http.HandlerFunc{
+		peerRESTMethodVerifyBinary: server.VerifyBinaryHandler,
+		peerRESTMethodCommitBinary: server.CommitBinaryHandler,
 	}
-	for _, mode := range []string{"", "server"} {
-		if content, err := downloadReleaseURL(u, time.Second, mode); content != "" || err != errSelfUpdateDisabled {
-			t.Fatalf("downloadReleaseURL = %q, %v", content, err)
-		}
-		if _, _, err := getLatestReleaseTime(u, time.Second, mode); err != errSelfUpdateDisabled {
-			t.Fatalf("getLatestReleaseTime = %v", err)
-		}
-		if _, err := getUpdateReaderFromURL(u, http.DefaultTransport, mode); err != errSelfUpdateDisabled {
-			t.Fatalf("getUpdateReaderFromURL = %v", err)
-		}
-		if _, _, err := downloadBinary(u, mode); err != errSelfUpdateDisabled {
-			t.Fatalf("downloadBinary = %v", err)
-		}
-		if err := verifyBinary(u, nil, "", mode, nil); err != errSelfUpdateDisabled {
-			t.Fatalf("verifyBinary = %v", err)
-		}
-		checkUpdate(mode)
-	}
-	if err := commitBinary(); err != errSelfUpdateDisabled {
-		t.Fatalf("commitBinary = %v", err)
-	}
-	if requests.Load() != 0 {
-		t.Fatal("self-update contacted an update server")
-	}
-}
+	for method, handler := range handlers {
+		for _, authenticated := range []bool{false, true} {
+			const payload = "binary"
+			body := strings.NewReader(payload)
+			req := httptest.NewRequest(http.MethodPost, peerRESTPath+method, body)
+			if authenticated {
+				req.Header.Set("Authorization", "Bearer "+globalNodeAuthToken)
+				req.Header.Set("X-Minio-Time", strconv.FormatInt(time.Now().UnixNano(), 10))
+			}
+			rec := httptest.NewRecorder()
+			handler(rec, req)
 
-func TestParseReleaseData(t *testing.T) {
-	releaseTime, _ := releaseTagToReleaseTime("RELEASE.2016-10-07T01-16-39Z")
-	testCases := []struct {
-		data                string
-		expectedResult      time.Time
-		expectedSha256hex   string
-		expectedReleaseInfo string
-		expectedErr         bool
-	}{
-		{"more than two fields", time.Time{}, "", "", true},
-		{"more than", time.Time{}, "", "", true},
-		{"more than.two.fields", time.Time{}, "", "", true},
-		{"more minio.RELEASE.fields", time.Time{}, "", "", true},
-		{"more minio.RELEASE.2016-10-07T01-16-39Z", time.Time{}, "", "", true},
-		{
-			"fbe246edbd382902db9a4035df7dce8cb441357d minio.RELEASE.2016-10-07T01-16-39Z\n", releaseTime, "fbe246edbd382902db9a4035df7dce8cb441357d",
-			"minio.RELEASE.2016-10-07T01-16-39Z", false,
-		},
-		{
-			"fbe246edbd382902db9a4035df7dce8cb441357d minio.RELEASE.2016-10-07T01-16-39Z.customer-hotfix\n", releaseTime, "fbe246edbd382902db9a4035df7dce8cb441357d",
-			"minio.RELEASE.2016-10-07T01-16-39Z.customer-hotfix", false,
-		},
-	}
-
-	for i, testCase := range testCases {
-		sha256Sum, result, releaseInfo, err := parseReleaseData(testCase.data)
-		if !testCase.expectedErr {
-			if err != nil {
-				t.Errorf("error case %d: expected no error, got: %v", i+1, err)
+			if rec.Code != http.StatusForbidden {
+				t.Errorf("%s authenticated=%v: status %d, want %d", method, authenticated, rec.Code, http.StatusForbidden)
 			}
-		} else if err == nil {
-			t.Errorf("error case %d: expected error got: %v", i+1, err)
-		}
-		if err == nil {
-			if hex.EncodeToString(sha256Sum) != testCase.expectedSha256hex {
-				t.Errorf("case %d: result: expected: %v, got: %x", i+1, testCase.expectedSha256hex, sha256Sum)
+			gotDisabled := rec.Body.String() == errSelfUpdateDisabled.Error()
+			if gotDisabled != authenticated {
+				t.Errorf("%s authenticated=%v: unexpected response %q", method, authenticated, rec.Body.String())
 			}
-			if !testCase.expectedResult.Equal(result) {
-				t.Errorf("case %d: result: expected: %v, got: %v", i+1, testCase.expectedResult, result)
-			}
-			if testCase.expectedReleaseInfo != releaseInfo {
-				t.Errorf("case %d: result: expected: %v, got: %v", i+1, testCase.expectedReleaseInfo, releaseInfo)
+			if body.Len() != len(payload) {
+				t.Errorf("%s authenticated=%v: request body was read", method, authenticated)
 			}
 		}
 	}

@@ -191,9 +191,19 @@ hotfix-vars hotfix hotfix-push docker-hotfix docker-hotfix-push:
 	@echo "Hotfix publishing is disabled in Granary; build from source with make build or make docker." >&2
 	@false
 
+# Value of `-X github.com/relvo-labs/granary/cmd.$(1)=...` in $(LDFLAGS).
+LDFLAG_VALUE = $(patsubst github.com/relvo-labs/granary/cmd.$(1)=%,%,$(filter github.com/relvo-labs/granary/cmd.$(1)=%,$(LDFLAGS)))
+
+# The image is stamped like `make build`: the Dockerfile runs gen-ldflags.go
+# with the same commit, commit time and MINIO_RELEASE/MINIO_HOTFIX inputs.
 docker: checks ## builds granary docker container
 	@echo "Building granary docker image '$(TAG)'"
-	@docker build -q --no-cache -t $(TAG) . -f Dockerfile
+	@docker build -q --no-cache \
+		--build-arg "COMMIT_ID=$(call LDFLAG_VALUE,CommitID)" \
+		--build-arg "COMMIT_TIME=$(call LDFLAG_VALUE,Version)" \
+		--build-arg "MINIO_RELEASE=$(MINIO_RELEASE)" \
+		--build-arg "MINIO_HOTFIX=$(MINIO_HOTFIX)" \
+		-t $(TAG) . -f Dockerfile
 
 test-resiliency: build
 	@echo "Running resiliency tests"
@@ -236,6 +246,9 @@ CI_INSTALL = env bash $(PWD)/buildscripts/ci/install-tools.sh $(CI_TOOLS_DIR)
 # `go generate` runs `go install tool` (main.go); keep msgp/stringer out of
 # $(GOPATH)/bin and put this directory first on PATH for the generators.
 CI_GEN_BIN = $(CI_TOOLS_DIR)/go-tool-bin/$(CI_GO_TOOLCHAIN)
+# `-X` with a wrong package path is silently ignored; check the result (#34).
+CHECK_VERSION_STAMP = env bash $(PWD)/buildscripts/check-version-stamp.sh
+VERSION_STAMP_BIN ?= $(PWD)/granary
 
 ci-tools: ## install every pinned CI tool into CI_TOOLS_DIR
 	@$(CI_INSTALL) all
@@ -250,7 +263,11 @@ ci-policy: ## workflow trigger/pinning policy and its adversarial tests (PyYAML 
 	@$(CI_PYTHON) buildscripts/ci/workflow_policy.py
 	@$(CI_PYTHON) -m unittest discover -s tests/ci -p 'test_*.py'
 
-ci-build: ci-go-version build ## build ./granary and debugging helpers with the pinned toolchain
+ci-build: ci-go-version build ## build ./granary and debugging helpers with the pinned toolchain, then check its version stamp
+	@$(CHECK_VERSION_STAMP) $(PWD)/granary "$$(git rev-parse HEAD)"
+
+check-version-stamp: ## fail unless VERSION_STAMP_BIN (default ./granary) --version reports the HEAD commit
+	@$(CHECK_VERSION_STAMP) "$(VERSION_STAMP_BIN)" "$$(git rev-parse HEAD)"
 
 ci-check-gen: ci-go-version ## generated code and go.sum must be committed (may rewrite them)
 	@mkdir -p $(CI_GEN_BIN)
@@ -286,4 +303,4 @@ ci-helm-lint: ## lint the Helm chart
 	@$(CI_INSTALL) helm
 	@cd helm/granary && $(CI_TOOLS_DIR)/helm/$(HELM_VERSION)/helm lint .
 
-.PHONY: ci-tools ci-go-version ci-policy ci-build ci-check-gen ci-lint ci-test ci-test-race ci-vulncheck ci-crosscompile ci-shfmt ci-typos ci-helm-lint
+.PHONY: ci-tools ci-go-version ci-policy ci-build check-version-stamp ci-check-gen ci-lint ci-test ci-test-race ci-vulncheck ci-crosscompile ci-shfmt ci-typos ci-helm-lint

@@ -19,13 +19,9 @@ package cmd
 
 import (
 	"bufio"
-	"encoding/hex"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"os"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -49,59 +45,6 @@ var errSelfUpdateDisabled = AdminError{
 // with RFC3339 (in UTC) - e.g. `2017-09-29T19:16:56Z`
 func minioVersionToReleaseTime(version string) (releaseTime time.Time, err error) {
 	return time.Parse(time.RFC3339, version)
-}
-
-// releaseTimeToReleaseTag - converts a time to a string formatted as
-// an official MinIO release tag.
-//
-// An official minio release tag looks like:
-// `RELEASE.2017-09-29T19-16-56Z`
-func releaseTimeToReleaseTag(releaseTime time.Time) string {
-	return "RELEASE." + releaseTime.Format(MinioReleaseTagTimeLayout)
-}
-
-// releaseTagToReleaseTime - reverse of `releaseTimeToReleaseTag()`
-func releaseTagToReleaseTime(releaseTag string) (releaseTime time.Time, err error) {
-	fields := strings.Split(releaseTag, ".")
-	if len(fields) < 2 || len(fields) > 4 {
-		return releaseTime, fmt.Errorf("%s is not a valid release tag", releaseTag)
-	}
-	if fields[0] != "RELEASE" {
-		return releaseTime, fmt.Errorf("%s is not a valid release tag", releaseTag)
-	}
-	return time.Parse(MinioReleaseTagTimeLayout, fields[1])
-}
-
-// getModTime - get the file modification time of `path`
-func getModTime(path string) (t time.Time, err error) {
-	// Convert to absolute path
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		return t, fmt.Errorf("Unable to get absolute path of %s. %w", path, err)
-	}
-
-	// Version is minio non-standard, we will use minio binary's
-	// ModTime as release time.
-	fi, err := Stat(absPath)
-	if err != nil {
-		return t, fmt.Errorf("Unable to get ModTime of %s. %w", absPath, err)
-	}
-
-	// Return the ModTime
-	return fi.ModTime().UTC(), nil
-}
-
-// GetCurrentReleaseTime - returns this process's release time.  If it
-// is official minio version, parsed version is returned else minio
-// binary's mod time is returned.
-func GetCurrentReleaseTime() (releaseTime time.Time, err error) {
-	if releaseTime, err = minioVersionToReleaseTime(Version); err == nil {
-		return releaseTime, err
-	}
-
-	// Looks like version is minio non-standard, we use minio
-	// binary's ModTime as release time:
-	return getModTime(os.Args[0])
 }
 
 // IsDocker - returns if the environment minio is running in docker or
@@ -293,88 +236,4 @@ func getUserAgent(mode string) string {
 	uaAppend(")", "")
 
 	return strings.Join(userAgentParts, "")
-}
-
-func downloadReleaseURL(u *url.URL, timeout time.Duration, mode string) (content string, err error) {
-	return "", errSelfUpdateDisabled
-}
-
-func releaseInfoToReleaseTime(releaseInfo string) (releaseTime time.Time, err error) {
-	// Split release of style minio.RELEASE.2019-08-21T19-40-07Z.<hotfix>
-	nfields := strings.SplitN(releaseInfo, ".", 2)
-	if len(nfields) != 2 {
-		err = fmt.Errorf("Unknown release information `%s`", releaseInfo)
-		return releaseTime, err
-	}
-	if nfields[0] != "minio" {
-		err = fmt.Errorf("Unknown release `%s`", releaseInfo)
-		return releaseTime, err
-	}
-
-	releaseTime, err = releaseTagToReleaseTime(nfields[1])
-	if err != nil {
-		err = fmt.Errorf("Unknown release tag format. %w", err)
-	}
-	return releaseTime, err
-}
-
-// parseReleaseData - parses release info file content fetched from
-// official minio download server.
-//
-// The expected format is a single line with two words like:
-//
-// fbe246edbd382902db9a4035df7dce8cb441357d minio.RELEASE.2016-10-07T01-16-39Z.<hotfix_optional>
-//
-// The second word must be `minio.` appended to a standard release tag.
-func parseReleaseData(data string) (sha256Sum []byte, releaseTime time.Time, releaseInfo string, err error) {
-	defer func() {
-		if err != nil {
-			err = AdminError{
-				Code:       AdminUpdateUnexpectedFailure,
-				Message:    err.Error(),
-				StatusCode: http.StatusInternalServerError,
-			}
-		}
-	}()
-
-	fields := strings.Fields(data)
-	if len(fields) != 2 {
-		err = fmt.Errorf("Unknown release data `%s`", data)
-		return sha256Sum, releaseTime, releaseInfo, err
-	}
-
-	sha256Sum, err = hex.DecodeString(fields[0])
-	if err != nil {
-		return sha256Sum, releaseTime, releaseInfo, err
-	}
-
-	releaseInfo = fields[1]
-
-	releaseTime, err = releaseInfoToReleaseTime(releaseInfo)
-	return sha256Sum, releaseTime, releaseInfo, err
-}
-
-func getLatestReleaseTime(u *url.URL, timeout time.Duration, mode string) (sha256Sum []byte, releaseTime time.Time, err error) {
-	return nil, time.Time{}, errSelfUpdateDisabled
-}
-
-func getDownloadURL(releaseTag string) (downloadURL string) {
-	return ""
-}
-
-func getUpdateReaderFromURL(u *url.URL, transport http.RoundTripper, mode string) (io.ReadCloser, error) {
-	return nil, errSelfUpdateDisabled
-}
-
-// Function to get the reader from an architecture
-func downloadBinary(u *url.URL, mode string) (binCompressed []byte, bin []byte, err error) {
-	return nil, nil, errSelfUpdateDisabled
-}
-
-func verifyBinary(u *url.URL, sha256Sum []byte, releaseInfo, mode string, reader io.Reader) (err error) {
-	return errSelfUpdateDisabled
-}
-
-func commitBinary() (err error) {
-	return errSelfUpdateDisabled
 }

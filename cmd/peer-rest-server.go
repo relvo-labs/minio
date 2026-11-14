@@ -21,13 +21,11 @@ import (
 	"bytes"
 	"context"
 	"encoding/gob"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,7 +33,6 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/klauspost/compress/zstd"
 	"github.com/minio/madmin-go/v3"
 	"github.com/minio/madmin-go/v3/logger/log"
 	"github.com/minio/mux"
@@ -604,66 +601,24 @@ func (s *peerRESTServer) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	s.IsValid(w, r)
 }
 
-// VerifyBinary - verifies the downloaded binary is in-tact
+// VerifyBinaryHandler - self-update is disabled in Granary; the route is kept
+// so that a peer running an older binary gets a clean error.
 func (s *peerRESTServer) VerifyBinaryHandler(w http.ResponseWriter, r *http.Request) {
 	if !s.IsValid(w, r) {
 		s.writeErrorResponse(w, errors.New("Invalid request"))
 		return
 	}
-
-	if r.ContentLength < 0 {
-		s.writeErrorResponse(w, errInvalidArgument)
-		return
-	}
-
-	u, err := url.Parse(r.Form.Get(peerRESTURL))
-	if err != nil {
-		s.writeErrorResponse(w, err)
-		return
-	}
-
-	sha256Sum, err := hex.DecodeString(r.Form.Get(peerRESTSha256Sum))
-	if err != nil {
-		s.writeErrorResponse(w, err)
-		return
-	}
-	releaseInfo := r.Form.Get(peerRESTReleaseInfo)
-
-	lrTime, err := releaseInfoToReleaseTime(releaseInfo)
-	if err != nil {
-		s.writeErrorResponse(w, err)
-		return
-	}
-
-	if lrTime.Sub(currentReleaseTime) <= 0 {
-		s.writeErrorResponse(w, fmt.Errorf("server is running the latest version: %s", Version))
-		return
-	}
-
-	zr, err := zstd.NewReader(r.Body)
-	if err != nil {
-		s.writeErrorResponse(w, err)
-		return
-	}
-	defer zr.Close()
-
-	if err = verifyBinary(u, sha256Sum, releaseInfo, getMinioMode(), zr); err != nil {
-		s.writeErrorResponse(w, err)
-		return
-	}
+	s.writeErrorResponse(w, errSelfUpdateDisabled)
 }
 
-// CommitBinary - overwrites the current binary with the new one.
+// CommitBinaryHandler - self-update is disabled in Granary; the route is kept
+// so that a peer running an older binary gets a clean error.
 func (s *peerRESTServer) CommitBinaryHandler(w http.ResponseWriter, r *http.Request) {
 	if !s.IsValid(w, r) {
 		s.writeErrorResponse(w, errors.New("Invalid request"))
 		return
 	}
-
-	if err := commitBinary(); err != nil {
-		s.writeErrorResponse(w, err)
-		return
-	}
+	s.writeErrorResponse(w, errSelfUpdateDisabled)
 }
 
 var errUnsupportedSignal = fmt.Errorf("unsupported signal")

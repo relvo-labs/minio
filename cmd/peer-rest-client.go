@@ -20,7 +20,6 @@ package cmd
 import (
 	"context"
 	"encoding/gob"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -392,31 +391,6 @@ func (client *peerRESTClient) ReloadSiteReplicationConfig(ctx context.Context) e
 
 	_, err := reloadSiteReplicationConfigRPC.Call(ctx, conn, grid.NewMSS())
 	return err
-}
-
-// VerifyBinary - sends verify binary message to remote peers.
-func (client *peerRESTClient) VerifyBinary(ctx context.Context, u *url.URL, sha256Sum []byte, releaseInfo string, reader io.Reader) error {
-	values := make(url.Values)
-	values.Set(peerRESTURL, u.String())
-	values.Set(peerRESTSha256Sum, hex.EncodeToString(sha256Sum))
-	values.Set(peerRESTReleaseInfo, releaseInfo)
-
-	respBody, err := client.callWithContext(ctx, peerRESTMethodVerifyBinary, values, reader, -1)
-	if err != nil {
-		return err
-	}
-	defer xhttp.DrainBody(respBody)
-	return nil
-}
-
-// CommitBinary - sends commit binary message to remote peers.
-func (client *peerRESTClient) CommitBinary(ctx context.Context) error {
-	respBody, err := client.callWithContext(ctx, peerRESTMethodCommitBinary, nil, nil, -1)
-	if err != nil {
-		return err
-	}
-	defer xhttp.DrainBody(respBody)
-	return nil
 }
 
 // SignalService - sends signal to peer nodes.

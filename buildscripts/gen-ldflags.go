@@ -24,20 +24,36 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func genLDFlags(version string) string {
+// Build metadata becomes part of the -ldflags string, so it must not contain
+// separators or option text that would add further linker flags.
+var (
+	commitIDRe     = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	releaseFieldRe = regexp.MustCompile(`^([A-Za-z0-9][A-Za-z0-9._-]{0,63})?$`)
+)
+
+func mustMatch(re *regexp.Regexp, name, value string) {
+	if !re.MatchString(value) {
+		fmt.Fprintf(os.Stderr, "gen-ldflags: invalid %s %q: must match %s\n", name, value, re)
+		os.Exit(1)
+	}
+}
+
+func genLDFlags(version, commit string) string {
+	mustMatch(commitIDRe, "commit ID", commit)
 	releaseTag, date := releaseTag(version)
 	copyrightYear := strconv.Itoa(date.Year())
 	ldflagsStr := "-s -w"
 	ldflagsStr += " -X github.com/relvo-labs/granary/cmd.Version=" + version
 	ldflagsStr += " -X github.com/relvo-labs/granary/cmd.CopyrightYear=" + copyrightYear
 	ldflagsStr += " -X github.com/relvo-labs/granary/cmd.ReleaseTag=" + releaseTag
-	ldflagsStr += " -X github.com/relvo-labs/granary/cmd.CommitID=" + commitID()
-	ldflagsStr += " -X github.com/relvo-labs/granary/cmd.ShortCommitID=" + commitID()[:12]
+	ldflagsStr += " -X github.com/relvo-labs/granary/cmd.CommitID=" + commit
+	ldflagsStr += " -X github.com/relvo-labs/granary/cmd.ShortCommitID=" + commit[:12]
 	ldflagsStr += " -X github.com/relvo-labs/granary/cmd.GOPATH=" + os.Getenv("GOPATH")
 	ldflagsStr += " -X github.com/relvo-labs/granary/cmd.GOROOT=" + os.Getenv("GOROOT")
 	return ldflagsStr
@@ -45,6 +61,9 @@ func genLDFlags(version string) string {
 
 // genReleaseTag prints release tag to the console for easy git tagging.
 func releaseTag(version string) (string, time.Time) {
+	mustMatch(releaseFieldRe, "MINIO_RELEASE", os.Getenv("MINIO_RELEASE"))
+	mustMatch(releaseFieldRe, "MINIO_HOTFIX", os.Getenv("MINIO_HOTFIX"))
+
 	relPrefix := "DEVELOPMENT"
 	if prefix := os.Getenv("MINIO_RELEASE"); prefix != "" {
 		relPrefix = prefix
@@ -109,13 +128,21 @@ func commitTime() time.Time {
 	return t.UTC()
 }
 
+// Usage: gen-ldflags.go [version [commit-id]]. Both default to the git
+// metadata of the last commit; the Docker build passes them explicitly
+// because .git is not part of its build context.
 func main() {
-	var version string
+	var version, commit string
 	if len(os.Args) > 1 {
 		version = os.Args[1]
 	} else {
 		version = commitTime().Format(time.RFC3339)
 	}
+	if len(os.Args) > 2 {
+		commit = os.Args[2]
+	} else {
+		commit = commitID()
+	}
 
-	fmt.Println(genLDFlags(version))
+	fmt.Println(genLDFlags(version, commit))
 }

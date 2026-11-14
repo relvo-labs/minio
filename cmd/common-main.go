@@ -65,9 +65,8 @@ import (
 
 // serverDebugLog will enable debug printing
 var (
-	serverDebugLog     = env.Get("_MINIO_SERVER_DEBUG", config.EnableOff) == config.EnableOn
-	currentReleaseTime time.Time
-	orchestrated       = IsKubernetes() || IsDocker()
+	serverDebugLog = env.Get("_MINIO_SERVER_DEBUG", config.EnableOff) == config.EnableOn
+	orchestrated   = IsKubernetes() || IsDocker()
 )
 
 func init() {
@@ -111,8 +110,6 @@ func init() {
 	// another way to look at this is we are turning off retries.
 	minio.MaxRetry = 1
 	madmin.MaxRetry = 1
-
-	currentReleaseTime, _ = GetCurrentReleaseTime()
 }
 
 const consolePrefix = "CONSOLE_"
@@ -292,11 +289,6 @@ func initConsoleServer() (*consoleapi.Server, error) {
 	}
 
 	return server, nil
-}
-
-// Keep the startup hook without fetching upstream update notifications.
-func checkUpdate(mode string) {
-	// Granary has no published update channel. Never query upstream for updates.
 }
 
 func newConfigDir(dir string, dirSet bool, getDefaultDir func() string) (*ConfigDir, error) {
@@ -774,11 +766,6 @@ func serverHandleEnvVars() {
 		}
 		updateDomainIPs(domainIPs)
 	}
-
-	// In place update is true by default if the MINIO_UPDATE is not set
-	// or is not set to 'off', if MINIO_UPDATE is set to 'off' then
-	// in-place update is off.
-	globalInplaceUpdateDisabled = strings.EqualFold(env.Get(config.EnvUpdate, config.EnableOn), config.EnableOff)
 
 	// Check if the supported credential env vars,
 	// "MINIO_ROOT_USER" and "MINIO_ROOT_PASSWORD" are provided

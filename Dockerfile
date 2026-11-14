@@ -1,5 +1,6 @@
 # Granary is an unofficial fork derived from MinIO. Build this checkout only.
-FROM golang:1.27.4-bookworm AS build
+# golang:1.27.4-bookworm (multi-arch index digest)
+FROM golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea AS build
 WORKDIR /src
 ENV GOTOOLCHAIN=local CGO_ENABLED=0 GOMAXPROCS=8
 COPY go.mod go.sum ./
@@ -7,14 +8,38 @@ RUN go mod download
 COPY . .
 ARG TARGETOS=linux
 ARG TARGETARCH
-ARG VERSION=development
-ARG COMMIT_ID=unknown
-RUN test "$(go env GOVERSION)" = "go$(sed -n 's/^toolchain go//p' go.mod)" && \
-    GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -tags kqueue -trimpath \
-    -ldflags "-s -w -X github.com/relvo-labs/granary/cmd.ReleaseTag=${VERSION} -X github.com/relvo-labs/granary/cmd.CommitID=${COMMIT_ID} -X github.com/relvo-labs/granary/cmd.CopyrightYear=$(date -u +%Y)" \
-    -o /out/granary .
+# Build metadata, passed by `make docker` (.git is not in the build context):
+# the full commit ID, its UTC RFC3339 commit time (cmd.Version) and the
+# optional release prefix/suffix that gen-ldflags.go reads from the
+# environment.  With them the binary is stamped exactly like `make build` and
+# the build fails unless `granary --version` reports COMMIT_ID.  Without them
+# it keeps the DEVELOPMENT.GOGET placeholders of an unstamped build, and a
+# release prefix/suffix is an error.  Each value is checked as a whole string
+# (no trailing lines) before it becomes part of the linker flags.
+ARG COMMIT_ID=
+ARG COMMIT_TIME=
+ARG MINIO_RELEASE=
+ARG MINIO_HOTFIX=
+RUN set -eu; \
+    test "$(go env GOVERSION)" = "go$(sed -n 's/^toolchain go//p' go.mod)"; \
+    if [ -n "${COMMIT_ID}${COMMIT_TIME}" ]; then \
+        { test "${#COMMIT_ID}" -eq 40 && case "${COMMIT_ID}" in *[!0-9a-f]*) false ;; esac; } || \
+            { echo "COMMIT_ID must be a full 40-character commit ID" >&2; exit 1; }; \
+        case "${COMMIT_TIME}" in \
+            [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z) ;; \
+            *) echo "COMMIT_TIME must be a UTC RFC3339 time (YYYY-MM-DDTHH:MM:SSZ)" >&2; exit 1 ;; \
+        esac; \
+        ldflags="$(go run buildscripts/gen-ldflags.go "${COMMIT_TIME}" "${COMMIT_ID}")"; \
+    else \
+        test -z "${MINIO_RELEASE}${MINIO_HOTFIX}" || \
+            { echo "MINIO_RELEASE/MINIO_HOTFIX need COMMIT_ID and COMMIT_TIME (see make docker)" >&2; exit 1; }; \
+        ldflags="-s -w -X github.com/relvo-labs/granary/cmd.CopyrightYear=$(date -u +%Y)"; \
+    fi; \
+    GOOS=${TARGETOS} GOARCH=${TARGETARCH} go build -tags kqueue -trimpath -ldflags "${ldflags}" -o /out/granary .; \
+    if [ -n "${COMMIT_ID}" ]; then bash buildscripts/check-version-stamp.sh /out/granary "${COMMIT_ID}"; fi
 
-FROM debian:bookworm-slim
+# debian:bookworm-slim (multi-arch index digest)
+FROM debian:bookworm-slim@sha256:734a72b3d6142a71993b4bc580ca01d8ca687f77a2c422d96a961d3376b179bc
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 LABEL org.opencontainers.image.title="Granary" \

@@ -58,7 +58,9 @@ elif tool == 'curl':
     if mode == 'network-error': sys.exit(7)
     url = args[-1]
     status = '200' if '?' in url or mode == 'existing-tag' or pushed.exists() else '404'
-    if mode in ('private-tag', 'private-latest', 'anonymous-fails'): status = '404'
+    if mode in ('private-tag', 'private-latest') or (
+            mode == 'listing-not-found' and '?' in url) or (
+            mode == 'anonymous-fails' and pushed.exists()): status = '404'
     data = {'message': 'httperror 404: object not found'}
     if '?' in url:
         data = {'results': [{'name': version}] if mode == 'older-version' else [], 'next': None}
@@ -77,6 +79,10 @@ elif tool == 'docker':
         print('Runtime: go1.27.4 linux/' + runtime)
     elif args[:3] == ['buildx', 'imagetools', 'inspect']:
         if not pushed.exists():
+            if mode == 'anonymous-denial':
+                print('ERROR: pull access denied, repository does not exist or may require authorization: '
+                      'server message: insufficient_scope: authorization failed', file=sys.stderr)
+                sys.exit(1)
             latest = args[-1].endswith(':latest') or '@sha256:' in args[-1]
             if mode == 'tag-appears' and not latest and '--load' in pathlib.Path(os.environ['RELEASE_TEST_CALLS']).read_text():
                 print(json.dumps({'digest': 'sha256:' + 'a' * 64}))
@@ -180,34 +186,56 @@ class ReleaseImage(unittest.TestCase):
         self.rejected('fetch-error', 'fresh origin/master fetch failed')
 
     def test_existing_version_tag(self):
-        calls = self.rejected('existing-tag', 'already exists; never overwrite')
+        calls = self.rejected('existing-tag', 'already exists; never overwrite', extra=('--push',))
         self.assertFalse(any(c[1:3] == ['buildx', 'build'] for c in calls))
 
     def test_private_tag_cannot_be_overwritten(self):
-        self.rejected('private-tag', 'already exists; never overwrite')
+        self.rejected('private-tag', 'already exists; never overwrite', extra=('--push',))
+
+    def test_dry_run_skips_registry_checks_with_anonymous_denial(self):
+        result, calls = self.run_script('anonymous-denial', extra=('--dry-run',))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(sum('--load' in c for c in calls), 2)
+        self.assertEqual(sum(c[:2] == ['docker', 'run'] for c in calls), 2)
+        self.assertFalse(any(c[0] == 'curl' or c[1:4] == ['buildx', 'imagetools', 'inspect']
+                             or '--push' in c for c in calls))
+
+    def test_push_anonymous_denial_aborts_before_build(self):
+        calls = self.rejected('anonymous-denial', 'authenticated lookup failed', extra=('--push',))
+        self.assertFalse(any(c[1:3] in (['buildx', 'build'], ['buildx', 'create']) for c in calls))
+
+    def test_push_requires_public_listing_even_without_candidate_or_latest(self):
+        calls = self.rejected('listing-not-found',
+                              'Docker Hub repository neil0628/granary must exist and be public before publishing',
+                              extra=('--push',))
+        inspected = [c[-1] for c in calls if c[1:4] == ['buildx', 'imagetools', 'inspect']]
+        self.assertEqual(inspected, ['docker.io/neil0628/granary:' + VERSION,
+                                     'docker.io/neil0628/granary:latest'])
+        self.assertTrue(any(c[0] == 'curl' and '?page_size=100' in c[-1] for c in calls))
+        self.assertFalse(any(c[1:3] in (['buildx', 'build'], ['buildx', 'create']) for c in calls))
 
     def test_tag_appearing_before_push_aborts(self):
         calls = self.rejected('tag-appears', 'already exists; never overwrite', extra=('--push',))
         self.assertEqual(sum('--load' in c for c in calls), 2)
 
     def test_explicit_manifest_unknown_allows_first_release(self):
-        result, calls = self.run_script('manifest-unknown')
+        result, calls = self.run_script('manifest-unknown', extra=('--push',))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(sum('--load' in c for c in calls), 2)
 
     def test_authenticated_inspect_failures_abort(self):
         for mode in ('inspect-denied', 'inspect-unknown', 'latest-denied', 'latest-unknown'):
             with self.subTest(mode=mode):
-                self.rejected(mode, 'authenticated lookup failed')
+                self.rejected(mode, 'authenticated lookup failed', extra=('--push',))
 
     def test_latest_revision_and_version(self):
-        self.rejected('non-descendant', 'descendant of current latest revision')
-        self.rejected('latest-newer', 'newer than current latest')
+        self.rejected('non-descendant', 'descendant of current latest revision', extra=('--push',))
+        self.rejected('latest-newer', 'newer than current latest', extra=('--push',))
         for mode in ('bad-labels', 'inconsistent-labels'):
             with self.subTest(mode=mode):
-                self.rejected(mode, 'latest labels')
-        self.rejected('private-latest', 'cannot enumerate existing tags')
-        result, _ = self.run_script('latest-present')
+                self.rejected(mode, 'latest labels', extra=('--push',))
+        self.rejected('private-latest', 'must exist and be public before publishing', extra=('--push',))
+        result, _ = self.run_script('latest-present', extra=('--push',))
         self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_wrong_origin(self):
@@ -248,10 +276,10 @@ class ReleaseImage(unittest.TestCase):
     def test_registry_errors_fail_closed(self):
         for mode in ('network-error', 'rate-limited', 'bad-json'):
             with self.subTest(mode=mode):
-                self.rejected(mode, 'Docker Hub')
+                self.rejected(mode, 'Docker Hub', extra=('--push',))
 
     def test_latest_cannot_move_backwards(self):
-        self.rejected('older-version', 'newer than every published version')
+        self.rejected('older-version', 'newer than every published version', extra=('--push',))
 
     def test_failed_or_empty_stamping(self):
         for mode in ('stamp-error', 'empty-stamp'):
@@ -280,6 +308,7 @@ class ReleaseImage(unittest.TestCase):
         runs = [c for c in calls if c[:2] == ['docker', 'run']]
         self.assertEqual([c[c.index('--platform') + 1] for c in runs], ['linux/amd64', 'linux/arm64'])
         self.assertFalse(any('--push' in c or 'login' in c or 'prune' in c for c in calls))
+        self.assertFalse(any(c[0] == 'curl' or c[1:4] == ['buildx', 'imagetools', 'inspect'] for c in calls))
 
     def test_mock_publication_readback(self):
         # All docker/curl/git/go calls go to the local stubs above, including

@@ -120,14 +120,13 @@ PY
 	esac
 }
 check_tags() {
-	local next latest_digest latest_revision latest_exists=0 pages=0
+	local next latest_digest latest_revision pages=0
 	# Always use the publisher's Docker context. Anonymous 404s also hide
 	# private repositories and cannot establish that a tag is absent.
 	if authenticated_inspect "$image:$version"; then
 		die "version tag $version already exists; never overwrite it"
 	fi
 	if authenticated_inspect "$image:latest"; then
-		latest_exists=1
 		latest_digest=$(
 			python3 -I - "$scratch/auth.descriptor" <<'PY'
 import json, re, sys
@@ -162,9 +161,7 @@ PY
 		((++pages <= 100)) || die "too many Docker Hub tag pages"
 		hub_get "$next"
 		if [[ $status == 404 ]]; then
-			((pages == 1)) || die "Docker Hub tag pagination disappeared"
-			((latest_exists == 0)) || die "cannot enumerate existing tags; set the Docker Hub repository public"
-			break # Both authenticated lookups explicitly reported absent.
+			die "Docker Hub repository neil0628/granary must exist and be public before publishing (including the first release); cannot enumerate existing tags"
 		fi
 		next=$(
 			python3 -I - "$scratch/hub.json" "$version" "$hub" <<'PY'
@@ -198,7 +195,11 @@ PY
 	return 1
 }
 docker buildx version >/dev/null || die "Docker buildx required"
-check_tags
+# Hosted dry runs need no publisher credentials or release-tag availability.
+# Publication must pass every registry check before creating a builder.
+if ((push)); then
+	check_tags
+fi
 mkdir "$scratch/context"
 git archive "$commit" | tar -x -C "$scratch/context"
 docker buildx create --name "$builder" --driver docker-container --driver-opt "image=$buildkit_image" >/dev/null

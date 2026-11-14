@@ -24,24 +24,25 @@ explicit URL, including full history in shallow
 clones, and requires HEAD to be an ancestor of or equal to that ref. This lets
 the owner qualify a fixed master commit while master advances. An unmerged
 feature branch is rejected, including when selected for manual Actions.
-When `latest` exists, HEAD must also be a descendant of or equal to its
-`org.opencontainers.image.revision`. Both platform revisions and version labels
+In `--push` mode, when `latest` exists, HEAD must also be a descendant of or
+equal to its `org.opencontainers.image.revision`. Both platform revisions and version labels
 must agree. The labels are read with the publisher's Docker context from the
 resolved immutable `latest` digest; missing or malformed labels abort.
 Build context comes from `git archive` of that exact commit, excluding ignored
 local files. No branch switch, git tag or GitHub Release is made by the script.
 
 VERSION must be a real calendar date in `vYYYY.MM.DD` form within today UTC
-plus or minus one day. `docker buildx imagetools inspect` uses the publisher's
-Docker context to check the candidate tag and `latest`; only an explicit
+plus or minus one day. For `--push`, `docker buildx imagetools inspect` uses
+the publisher's Docker context to check the candidate tag and `latest`; only an explicit
 manifest-unknown or reference-specific not-found response establishes absence.
 Authentication, network and unknown failures abort. An anonymous Docker Hub
 API 404 never substitutes for this check, because it can hide private tags.
 VERSION must be newer than the authenticated `latest` version and every tag
-in the anonymous tag listing. All tag pages are checked; if `latest` exists
-but anonymous enumeration returns 404, publication aborts. Explicit absence
-of both candidate and `latest` permits first publication. These tag, version
-and revision checks repeat just before pushing.
+in the anonymous tag listing. All tag pages must return HTTP 200, including
+before the first release; a 404 aborts even when candidate and `latest` are
+explicitly absent. Two missing references do not establish that a private
+repository has no other version tags. These tag, version and revision checks
+run before any build and repeat just before pushing.
 
 Run only one publisher at a time. Hub manifest writes have no atomic
 create-if-absent operation; these checks cannot prevent another publisher
@@ -71,7 +72,8 @@ license label is `AGPL-3.0-or-later`, following LICENSE and the source notices'
 
 ## Dry run
 
-On the selected clean master commit, with a currently unused date:
+On the selected clean master commit, with a date within today UTC plus or
+minus one day:
 
 ```sh
 make release-image VERSION=v2026.11.15
@@ -89,13 +91,17 @@ failure of one removal does not skip the others. Cleanup ignores further INT
 and TERM signals and preserves the original failure or interruption status.
 The BuildKit pin is the multi-arch index resolved on 2026-11-14 with an empty
 Docker config using `docker buildx imagetools inspect docker.io/moby/buildkit:buildx-stable-1`.
-No registry login or push occurs. An interruption that bypasses traps (such as
-SIGKILL) may require removing the printed task builder and its image tags by
+Dry-run mode builds and verifies both platforms and their version stamps and
+applies the OCI labels. It performs no release-tag existence, newest-version
+or published-revision checks and needs no publisher credentials; an already
+published date can be used. The build still pulls its public base and BuildKit
+images. No registry login or push occurs. An interruption that bypasses traps
+(such as SIGKILL) may require removing the printed task builder and its image tags by
 their exact names. Never use global prune for cleanup.
 
 `release-dryrun.yml` is manual-only with no inputs or secrets, read-only token
 permissions and pinned actions. Select master for the dispatch; it uses the
-current UTC date as VERSION. A used date deliberately fails closed. It registers
+current UTC date as VERSION. It registers
 QEMU on the disposable GitHub runner with a Docker Hub binfmt index pinned by
 digest (read anonymously on 2026-11-14), then calls the same dry-run Make target.
 Docker buildx is supplied by the runner and checked before use. No hosted run
@@ -104,8 +110,11 @@ or completed two-platform build is claimed by this runbook.
 ## Publish and read back (owner-authorized maintainer host only)
 
 Docker Hub credentials must already be configured on the host, outside the
-checkout. The Docker Hub repository must be **public**; check its visibility
-before publishing, including for the first release. Set `DOCKER_CONFIG` to
+checkout. Before the first release, **create the `neil0628/granary` repository
+in Docker Hub and set its visibility to public**. The repository must already
+exist and its tag list must be anonymously readable before any publishing
+build begins, including for the first release. Check its public visibility
+before each publication. Set `DOCKER_CONFIG` to
 that host-local directory if necessary. The
 script never logs in, reads credential files or prints credential values, and
 does not send them into the build context or Actions. Do not enable shell

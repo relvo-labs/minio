@@ -4,6 +4,7 @@
 """Prevent integration fixtures from falling back to unavailable server images."""
 
 import pathlib
+import re
 import subprocess
 import tempfile
 import unittest
@@ -30,6 +31,20 @@ class IntegrationImages(unittest.TestCase):
                     self.assertEqual(server["pull_policy"], "never")
                     if "healthcheck" in server:
                         self.assertNotIn("mc", server["healthcheck"]["test"])
+
+    def test_mint_healthchecks_require_cluster_readiness(self):
+        files = sorted((ROOT / ".github/workflows/mint").glob("*.yaml"))
+        self.assertEqual(len(files), 4)
+        for path in files:
+            with self.subTest(path=path.relative_to(ROOT)):
+                doc = yaml.safe_load(path.read_text())
+                for name, server in doc["services"].items():
+                    if "minio" in name:
+                        probe = "\n".join(server["healthcheck"]["test"])
+                        self.assertEqual(
+                            re.findall(r"\bGET\s+(\S+)\s+HTTP/", probe),
+                            ["/minio/health/cluster"],
+                        )
 
     def test_historical_entrypoints_fail_before_external_operations(self):
         scripts = [

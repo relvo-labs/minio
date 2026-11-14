@@ -191,6 +191,11 @@ images. `mint.yml` runs the root multi-stage Dockerfile directly:
 ```sh
 SHA_SHORT=$(git rev-parse --short HEAD)
 docker build -t "granary-ci:${SHA_SHORT}" -f Dockerfile .
+```
+
+After building, verify the version locally with:
+
+```sh
 docker run --rm "granary-ci:${SHA_SHORT}" --version
 ```
 
@@ -201,9 +206,12 @@ upstream-image overlay in `mint.yml` are removed. The root `.dockerignore`
 still excludes generated binaries and other unsuitable source-build inputs.
 
 All four `mint/*.yaml` modes use that local tag with `pull_policy: never`.
-Their readiness checks request `/minio/health/ready` through bash TCP sockets;
-the source-built image does not bundle `mc` or curl. `run-mint.sh` waits for
-healthy servers before starting the suite. It defaults to full Mint coverage;
+Their readiness checks request `/minio/health/cluster` through bash TCP sockets;
+the source-built image does not bundle `mc` or curl. This endpoint permits
+anonymous GET requests and returns 503 until the object layer, bucket metadata
+and IAM are initialized and every erasure set has write quorum. `run-mint.sh`
+waits for healthy servers before starting the suite or stopping pool nodes.
+It defaults to full Mint coverage;
 for a reduced local check, use `MINT_MODE=core MINT_TESTS=aws-sdk-go` before
 calling `.github/workflows/run-mint.sh erasure minio minio123 "$SHA_SHORT"`
 from the repository root. Test credentials here are public fixtures only.

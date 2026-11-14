@@ -1,6 +1,5 @@
-// Copyright (c) 2015-2021 MinIO, Inc.
-//
-// This file is part of MinIO Object Storage stack
+// Copyright (c) 2026 Granary contributors (unofficial fork of MinIO; not
+// affiliated with or endorsed by MinIO, Inc.).
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -14,26 +13,35 @@
 //
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
+//
+// SPDX-License-Identifier: AGPL-3.0-or-later
 
 package logger
 
 import (
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
 
+type modulePathProbe struct{}
+
 func TestTrimTraceModulePath(t *testing.T) {
+	// Derive the module path from the compiler so the test follows go.mod
+	// instead of repeating the literal used by trimStrings.
+	module := strings.TrimSuffix(reflect.TypeOf(modulePathProbe{}).PkgPath(), "/internal/logger")
+	if module == reflect.TypeOf(modulePathProbe{}).PkgPath() {
+		t.Fatalf("unexpected package path %q", module)
+	}
+
 	previous := trimStrings
 	t.Cleanup(func() { trimStrings = previous })
 	Init("", "")
-	for _, path := range []string{
-		"github.com/relvo-labs/granary/cmd/server-main.go",
-		"github.com/relvo-labs/granary/internal/logger/logger.go",
-	} {
-		want := strings.TrimPrefix(path, "github.com/relvo-labs/granary/")
-		if got := filepath.ToSlash(trimTrace(path)); got != want {
-			t.Errorf("trimTrace(%q) = %q, want %q", path, got, want)
+	for _, rel := range []string{"cmd/server-main.go", "internal/logger/logger.go"} {
+		path := module + "/" + rel
+		if got := filepath.ToSlash(trimTrace(path)); got != rel {
+			t.Errorf("trimTrace(%q) = %q, want %q", path, got, rel)
 		}
 	}
 }

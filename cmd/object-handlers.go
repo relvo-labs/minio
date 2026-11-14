@@ -3328,6 +3328,12 @@ func (api objectAPIHandlers) DeleteObjectTaggingHandler(w http.ResponseWriter, r
 		return
 	}
 
+	// Authenticate before looking up the object or proxying to a replication target.
+	if s3Error := authenticateRequest(ctx, r, policy.DeleteObjectTaggingAction); s3Error != ErrNone {
+		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(s3Error), r.URL)
+		return
+	}
+
 	opts, err := getOpts(ctx, r, bucket, object)
 	if err != nil {
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
@@ -3343,8 +3349,23 @@ func (api objectAPIHandlers) DeleteObjectTaggingHandler(w http.ResponseWriter, r
 			proxytgts := getProxyTargets(ctx, bucket, object, opts)
 			if !proxytgts.Empty() {
 				globalReplicationStats.Load().incProxy(bucket, removeObjectTaggingAPI, false)
+				// Remote tags are policy inputs too. Authorize before removing them.
+				remoteTags, perr := proxyGetTaggingToRepTarget(ctx, bucket, object, opts, proxytgts)
+				if perr.Err != nil || remoteTags == nil {
+					globalReplicationStats.Load().incProxy(bucket, removeObjectTaggingAPI, true)
+					if perr.Err != nil {
+						err = perr.Err
+					}
+					writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
+					return
+				}
+				r.Header.Set(xhttp.AmzObjectTagging, remoteTags.String())
+				if s3Error := authorizeRequest(ctx, r, policy.DeleteObjectTaggingAction); s3Error != ErrNone {
+					writeErrorResponse(ctx, w, errorCodes.ToAPIErr(s3Error), r.URL)
+					return
+				}
 				// proxy to replication target if active-active replication is in place.
-				perr := proxyTaggingToRepTarget(ctx, bucket, object, nil, opts, proxytgts)
+				perr = proxyTaggingToRepTarget(ctx, bucket, object, nil, opts, proxytgts)
 				if perr.Err != nil {
 					globalReplicationStats.Load().incProxy(bucket, removeObjectTaggingAPI, true)
 					writeErrorResponse(ctx, w, toAPIError(ctx, perr.Err), r.URL)
@@ -3367,12 +3388,6 @@ func (api objectAPIHandlers) DeleteObjectTaggingHandler(w http.ResponseWriter, r
 			}
 		}
 		writeErrorResponse(ctx, w, toAPIError(ctx, err), r.URL)
-		return
-	}
-
-	// Authenticate before adding the stored tags used by authorization.
-	if s3Error := authenticateRequest(ctx, r, policy.DeleteObjectTaggingAction); s3Error != ErrNone {
-		writeErrorResponse(ctx, w, errorCodes.ToAPIErr(s3Error), r.URL)
 		return
 	}
 

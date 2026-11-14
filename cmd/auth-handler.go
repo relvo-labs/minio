@@ -130,6 +130,25 @@ func getRequestAuthType(r *http.Request) (at authType) {
 			return authTypeUnknown
 		}
 	}
+	if isRequestUnsignedTrailerV4(r) {
+		// Unsigned refers to the payload, not the request's identity. Do not
+		// let query credentials take precedence over the Authorization header
+		// or turn an anonymous chunked upload into an authenticated request.
+		for _, key := range []string{
+			xhttp.AmzAlgorithm, xhttp.AmzCredential, xhttp.AmzDate,
+			xhttp.AmzExpires, xhttp.AmzSignedHeaders, xhttp.AmzSignature,
+			xhttp.AmzSecurityToken, xhttp.AmzContentSha256,
+			xhttp.AmzAccessKeyID, xhttp.AmzSignatureV2, xhttp.Expires,
+		} {
+			if _, ok := r.Form[key]; ok {
+				return authTypeUnknown
+			}
+		}
+		if r.Header.Get(xhttp.Authorization) != "" && !isRequestSignatureV4(r) {
+			return authTypeUnknown
+		}
+		return authTypeStreamingUnsignedTrailer
+	}
 	if isRequestSignatureV2(r) {
 		return authTypeSignedV2
 	} else if isRequestPresignedSignatureV2(r) {
@@ -138,8 +157,6 @@ func getRequestAuthType(r *http.Request) (at authType) {
 		return authTypeStreamingSigned
 	} else if isRequestSignStreamingTrailerV4(r) {
 		return authTypeStreamingSignedTrailer
-	} else if isRequestUnsignedTrailerV4(r) {
-		return authTypeStreamingUnsignedTrailer
 	} else if isRequestSignatureV4(r) {
 		return authTypeSigned
 	} else if isRequestPresignedSignatureV4(r) {
@@ -620,6 +637,13 @@ func setAuthMiddleware(h http.Handler) http.Handler {
 
 		aType := getRequestAuthType(r)
 		switch aType {
+		case authTypeStreamingUnsignedTrailer:
+			if r.Header.Get(xhttp.Authorization) == "" {
+				// Anonymous uploads still require an allowing bucket policy.
+				h.ServeHTTP(w, r)
+				return
+			}
+			fallthrough
 		case authTypeSigned, authTypeSignedV2, authTypeStreamingSigned, authTypeStreamingSignedTrailer:
 			// Verify if date headers are set, if not reject the request
 			amzDate, errCode := parseAmzDateHeader(r)
@@ -731,10 +755,8 @@ func isPutActionAllowed(ctx context.Context, atype authType, bucketName, objectN
 	case authTypeStreamingSigned, authTypePresigned, authTypeSigned, authTypeStreamingSignedTrailer:
 		cred, owner, s3Err = getReqAccessKeyV4(r, region, serviceS3)
 	case authTypeStreamingUnsignedTrailer:
-		cred, owner, s3Err = getReqAccessKeyV4(r, region, serviceS3)
-		if s3Err == ErrMissingFields {
-			// Could be anonymous. cred + owner is zero value.
-			s3Err = ErrNone
+		if r.Header.Get(xhttp.Authorization) != "" {
+			cred, owner, s3Err = getReqAccessKeyV4(r, region, serviceS3)
 		}
 	}
 	if s3Err != ErrNone {

@@ -112,16 +112,24 @@ func getConditionValues(r *http.Request, lc string, cred auth.Credentials) map[s
 	switch authType {
 	case authTypeSignedV2, authTypePresignedV2:
 		signatureVersion = signV2Algorithm
-	case authTypeSigned, authTypePresigned, authTypeStreamingSigned, authTypePostPolicy:
+	case authTypeSigned, authTypePresigned, authTypeStreamingSigned, authTypeStreamingSignedTrailer, authTypePostPolicy:
 		signatureVersion = signV4Algorithm
+	case authTypeStreamingUnsignedTrailer:
+		if isRequestSignatureV4(r) {
+			signatureVersion = signV4Algorithm
+		}
 	}
 
 	var authtype string
 	switch authType {
 	case authTypePresignedV2, authTypePresigned:
 		authtype = "REST-QUERY-STRING"
-	case authTypeSignedV2, authTypeSigned, authTypeStreamingSigned:
+	case authTypeSignedV2, authTypeSigned, authTypeStreamingSigned, authTypeStreamingSignedTrailer:
 		authtype = "REST-HEADER"
+	case authTypeStreamingUnsignedTrailer:
+		if isRequestSignatureV4(r) {
+			authtype = "REST-HEADER"
+		}
 	case authTypePostPolicy:
 		authtype = "POST"
 	}
